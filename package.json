@@ -1,7 +1,0 @@
-{
-  "name": "battle-match",
-  "private": true,
-  "scripts": {
-    "start": "npx --yes serve . -p 8080"
-  }
-}
