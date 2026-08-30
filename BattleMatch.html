@@ -1,0 +1,3585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Battle Match</title>
+  <!-- instant-fire is TEST-only; Single/VS use turn countdown -->
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --bg-elevated: #121820;
+      --bg-subtle: #1a2332;
+      --fg: #e7ecf3;
+      --fg-muted: #9aa8bc;
+      --fg-subtle: #6b7a8d;
+      --border: color-mix(in oklab, var(--fg) 12%, transparent);
+      --border-strong: color-mix(in oklab, var(--fg) 22%, transparent);
+      --accent: #4fc3f7;
+      --accent-fg: #0b0f14;
+      --danger: #ff8a80;
+      --radius-xs: 4px;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 24px;
+      --space-6: 32px;
+      --space-7: 48px;
+      --space-8: 64px;
+      --font-display: "Segoe UI", system-ui, -apple-system, sans-serif;
+      --font-body: "Segoe UI", system-ui, -apple-system, sans-serif;
+      --text-xs: clamp(0.75rem, 0.7rem + 0.2vw, 0.8125rem);
+      --text-sm: clamp(0.875rem, 0.82rem + 0.25vw, 0.9375rem);
+      --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.0625rem);
+      --text-xl: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+      --text-2xl: clamp(2rem, 1.35rem + 2.2vw, 3.1rem);
+      --leading-tight: 1.08;
+      --leading-snug: 1.25;
+      --leading-normal: 1.5;
+      --tracking-display: -0.03em;
+      --tracking-wide: 0.18em;
+      --motion-stagger: 40ms;
+      --motion-micro: 80ms;
+      --motion-quick: 150ms;
+      --motion-fast: 250ms;
+      --motion-slow: 400ms;
+      --motion-emphasis: 500ms;
+      --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --motion-y-medium: 12px;
+      --motion-scale-modal: 0.96;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-body);
+      overflow: hidden;
+    }
+    button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+    #ui {
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      text-align: center; z-index: 10; pointer-events: none;
+      text-shadow: 0 1px 4px #000;
+    }
+    #ui h1 { font-size: 1.05rem; color: var(--accent); margin-bottom: 2px; }
+    #status { font-size: 0.8rem; color: var(--fg-muted); max-width: 90vw; }
+    #hp-player {
+      position: absolute; bottom: 14px; left: 14px;
+      color: var(--accent); font-weight: 700; z-index: 10; pointer-events: none;
+      text-shadow: 0 1px 3px #000;
+    }
+    #hp-opponent {
+      position: absolute; top: 14px; right: 14px;
+      color: var(--danger); font-weight: 700; z-index: 10; pointer-events: none;
+      text-shadow: 0 1px 3px #000;
+    }
+    #controls {
+      position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 8px; z-index: 10; pointer-events: auto;
+    }
+    #controls button {
+      background: var(--bg-subtle); color: var(--fg); border: 1px solid #2d3a4f;
+      padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; cursor: pointer;
+    }
+    #controls button:hover { border-color: var(--accent); background: #243044; }
+    #btn-info {
+      position: absolute; top: 12px; left: 12px; z-index: 20;
+      background: var(--bg-subtle); color: var(--fg); border: 1px solid #2d3a4f;
+      width: 36px; height: 36px; border-radius: 8px;
+      font-size: 1.05rem; font-weight: 700; cursor: pointer;
+    }
+    #btn-info:hover { border-color: var(--accent); background: #243044; }
+    #btn-test {
+      position: absolute; top: 54px; left: 12px; z-index: 20;
+      background: var(--bg-subtle); color: #ffcc80; border: 1px solid #2d3a4f;
+      padding: 6px 10px; border-radius: 8px;
+      font-size: 0.75rem; font-weight: 700; cursor: pointer;
+    }
+    #btn-test:hover { border-color: #ffcc80; background: #243044; }
+    #btn-reset { display: none; }
+    #btn-undo { display: inline-block; }
+    body.test-mode #btn-reset { display: inline-block; }
+    body.test-mode #hp-opponent { display: none; }
+    #info-panel {
+      display: none; position: absolute; top: 54px; left: 12px; z-index: 20;
+      background: rgba(12, 18, 28, 0.94); border: 1px solid #2d3a4f;
+      border-radius: 8px; padding: 12px 14px; min-width: 280px;
+      max-height: 70vh; overflow: auto;
+      font-size: 0.82rem; line-height: 1.35;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    }
+    #info-panel.open { display: block; }
+    #info-panel h2 { font-size: 0.95rem; color: var(--accent); margin-bottom: 8px; }
+    #info-panel table { width: 100%; border-collapse: collapse; }
+    #info-panel th {
+      text-align: left; color: var(--fg-muted); font-weight: 600;
+      padding: 3px 6px 6px 0; border-bottom: 1px solid #2d3a4f;
+    }
+    #info-panel td { padding: 5px 8px 5px 0; border-bottom: 1px solid #1c2633; }
+    #info-panel .name { color: var(--fg); font-weight: 600; }
+    #info-panel .note { color: var(--fg-subtle); margin-top: 8px; font-size: 0.75rem; }
+
+    body.menu-mode #ui,
+    body.menu-mode #hp-player,
+    body.menu-mode #hp-opponent,
+    body.menu-mode #controls,
+    body.menu-mode #btn-info,
+    body.menu-mode #btn-test,
+    body.menu-mode #info-panel { display: none !important; }
+
+    #start-screen {
+      position: absolute; inset: 0; z-index: 40;
+      display: flex; align-items: flex-end; justify-content: flex-start;
+      padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
+               max(32px, env(safe-area-inset-bottom)) max(28px, env(safe-area-inset-left));
+      pointer-events: auto;
+      background:
+        linear-gradient(90deg, rgba(11,15,20,0.82) 0%, rgba(11,15,20,0.45) 42%, rgba(11,15,20,0.12) 70%, transparent 100%),
+        linear-gradient(0deg, rgba(11,15,20,0.72) 0%, transparent 46%);
+    }
+    #start-screen.leave {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--motion-slow) var(--ease-smooth-out);
+    }
+    body:not(.menu-mode) #start-screen { display: none; }
+    .start-panel {
+      max-width: 420px;
+      width: min(420px, 100%);
+    }
+    .start-kicker {
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: var(--space-3);
+      opacity: 0;
+      animation: startRise var(--motion-emphasis) var(--ease-smooth-out) forwards;
+    }
+    .start-panel h1 {
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);
+      font-weight: 600;
+      letter-spacing: var(--tracking-display);
+      line-height: var(--leading-tight);
+      color: var(--fg);
+      margin-bottom: var(--space-3);
+      opacity: 0;
+      animation: startRise var(--motion-emphasis) var(--ease-smooth-out) 80ms forwards;
+    }
+    .start-lead {
+      font-size: var(--text-sm);
+      color: var(--fg-muted);
+      line-height: var(--leading-normal);
+      max-width: 34ch;
+      margin-bottom: var(--space-6);
+      opacity: 0;
+      animation: startRise var(--motion-emphasis) var(--ease-smooth-out) 140ms forwards;
+    }
+    .start-actions {
+      display: flex; flex-direction: column; gap: var(--space-3);
+      width: min(280px, 100%);
+      opacity: 0;
+      animation: startRise var(--motion-emphasis) var(--ease-smooth-out) 220ms forwards;
+    }
+    .start-btn {
+      position: relative;
+      height: 48px;
+      padding: 0 var(--space-5);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      border: 1px solid var(--border-strong);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: var(--space-3);
+      transition: background var(--motion-quick) var(--ease-out),
+                  border-color var(--motion-quick) var(--ease-out),
+                  transform var(--motion-quick) var(--ease-out);
+    }
+    .start-btn:active { transform: scale(0.98); }
+    .start-btn.primary {
+      background: var(--fg);
+      color: var(--accent-fg);
+      border-color: var(--fg);
+    }
+    .start-btn.primary:hover { background: #f3f6fa; }
+    .start-btn.ghost {
+      background: color-mix(in oklab, var(--bg-elevated) 80%, transparent);
+      color: var(--fg);
+    }
+    .start-btn.ghost:hover { border-color: var(--accent); }
+    .start-btn .hint {
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--fg-subtle);
+    }
+    .start-btn.primary .hint { color: color-mix(in oklab, var(--accent-fg) 55%, transparent); }
+    #start-soon {
+      min-height: 20px;
+      margin-top: var(--space-4);
+      font-size: var(--text-xs);
+      color: var(--fg-muted);
+      letter-spacing: 0.04em;
+    }
+    @keyframes startRise {
+      from { opacity: 0; transform: translateY(var(--motion-y-medium)); filter: blur(2px); }
+      to { opacity: 1; transform: none; filter: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .start-kicker, .start-panel h1, .start-lead, .start-actions {
+        animation: none; opacity: 1;
+      }
+      #start-screen.leave { transition: none; }
+    }
+    @media (max-width: 640px) {
+      #start-screen { align-items: flex-end; padding-bottom: 28px; }
+      .start-panel { max-width: 100%; }
+    }
+    #sp-hud {
+      display: none;
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      z-index: 16; text-align: center; pointer-events: none;
+      text-shadow: 0 1px 4px #000;
+    }
+    #sp-hud .wave { font-size: 1.15rem; color: #ffe082; font-weight: 700; letter-spacing: 0.04em; }
+    #sp-hud .tgts { font-size: 0.78rem; color: #c8dcc4; margin-top: 2px; }
+    body.single-mode #sp-hud { display: block; }
+    body.single-mode #hp-opponent { display: none; }
+    body.single-mode #ui { top: 52px; }
+  </style>
+</head>
+<body class="menu-mode">
+  <div id="start-screen">
+    <div class="start-panel">
+      <p class="start-kicker">Match-3 hybrid</p>
+      <h1>Battle Match</h1>
+      <p class="start-lead">Lock camps, tanks, and warplanes. Raise the wall. First commander to zero loses.</p>
+      <p class="start-lead" id="build-stamp" style="color:#4fc3f7;font-weight:700;">Build: big-targets — 2-hit and 3-wide dummies are larger</p>
+      <div class="start-actions">
+        <button type="button" class="start-btn primary" id="btn-multi">
+          Multiplayer <span class="hint">You vs AI</span>
+        </button>
+        <button type="button" class="start-btn ghost" id="btn-single">
+          Single player <span class="hint">Map 1</span>
+        </button>
+      </div>
+      <p id="start-soon"></p>
+    </div>
+  </div>
+  <button id="btn-info" title="Unit info">i</button>
+  <button id="btn-test">TEST</button>
+  <div id="info-panel">
+    <h2>Unit roster</h2>
+    <table>
+      <thead>
+        <tr><th>Unit</th><th>ATK</th><th>HP</th><th>Charge</th></tr>
+      </thead>
+      <tbody id="info-body"></tbody>
+    </table>
+    <p class="note">Camp / Battle Tank / War Plane ATK is a 3-match volley (scales if 4–5 match). Wall does not fire. In Single / VS, locked units fire after the charge countdown — double-tap fire is TEST only. Player / AI HP start at 100.</p>
+  </div>
+  <div id="ui">
+    <h1>Battle Match</h1>
+    <div id="status">Build: big-targets — loading 3D library…</div>
+  </div>
+  <div id="sp-hud">
+    <div class="wave" id="sp-wave">5 Turns</div>
+    <div class="tgts" id="sp-targets"></div>
+  </div>
+  <div id="hp-player">You: 100 HP</div>
+  <div id="hp-opponent">AI: 100 HP</div>
+  <div id="controls">
+    <button id="btn-new">New Game</button>
+    <button id="btn-backup">Call Backup (0)</button>
+    <button id="btn-reset">Reset Board</button>
+    <button id="btn-undo">Undo</button>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/vehicles.js"></script>
+  <script src="js/camp.js"></script>
+  <script src="js/depot.js"></script>
+  <script src="js/airport.js"></script>
+  <script>
+    // Load Three.js: local file first (localhost / extra libs), CDN fallback
+    (function loadThree() {
+      function fail() {
+        document.getElementById("status").textContent =
+          "Could not load Three.js. Need internet once, or three.min.js next to this file.";
+      }
+      function tryCdn() {
+        const s = document.createElement("script");
+        s.src = "https://unpkg.com/three@0.160.0/build/three.min.js";
+        s.onload = startGame;
+        s.onerror = fail;
+        document.head.appendChild(s);
+      }
+      const s = document.createElement("script");
+      s.src = "three.min.js";
+      s.onload = startGame;
+      s.onerror = tryCdn;
+      document.head.appendChild(s);
+    })();
+
+    // ============================================================
+    // Battle Match — 3D match-3 hybrid
+    // ============================================================
+    function startGame() {
+    if (typeof THREE === "undefined") {
+      document.getElementById("status").textContent =
+        "Could not load Three.js.";
+      return;
+    }
+
+    const COLS = 8, ROWS = 6;
+    const CELL = 0.92;         // slightly smaller cells so both boards fit with gap
+    BM.CELL = CELL;
+    const makeTimerSprite = BM.makeTimerSprite;
+    const makeStarSprite = BM.makeStarSprite;
+    const buildTankModel = BM.buildTankModel;
+    const buildPlaneModel = BM.buildPlaneModel;
+    const createCampMesh = BM.createCampMesh;
+    const createBigTankMesh = BM.createDepotMesh;
+    const createBigPlaneMesh = BM.createAirportMesh;
+
+    const BOARD_GAP = 1.35;    // clearer gap between facing boards (~1.5 rows)
+    const COLORS = ["red", "blue", "green"];
+    const COLOR_HEX = { red: 0xe53935, blue: 0x1e88e5, green: 0x43a047 };
+    const MOVES_PER_TURN = 3;
+    const FIRE_TURNS = { red: 3, blue: 2, green: 1 };
+    const FIRE_DMG   = { red: 28, blue: 16, green: 8 };
+    const UNIT_MAX_HP = 20;
+    const MAX_ON_BOARD = 24;
+    const START_RESERVE = 0;
+
+    // Game state (ported from 2D rules)
+    let playerBoard = makeEmpty();
+    let opponentBoard = makeEmpty();
+    let selected = null; // { side: "player"|"opponent", c, r }
+    let pendingDelete = null; // { c, r } — tap again to confirm delete
+    let lastTap = { t: 0, c: -1, r: -1 };
+    let playerHP = 100, opponentHP = 100;
+    let playerReserve = START_RESERVE, opponentReserve = START_RESERVE;
+    let movesLeft = MOVES_PER_TURN;
+    let currentPlayer = "player"; // "player" | "opponent"
+    let gameOver = false;
+    let inputLocked = false; // while AI / projectiles run
+    let testMode = false;
+    let testUndo = [];
+    let undoEpoch = 0;
+    let lastTestAtk = 0;
+    let lastLockDesc = "";
+    let castleGroup = null;
+    let projectiles = []; // { mesh, fromPlayer, col, dmg, color, progress, remaining, blocked, hitRows }
+    let dmgPopups = [];
+    let planeBombs = [];
+    let shotNeedPack = false;
+    let campMeshes = { player: [], opponent: [] }; // living camp groups for idle anim
+    let tankMeshes = { player: [], opponent: [] }; // locked big tanks
+    let planeMeshes = { player: [], opponent: [] }; // locked big planes
+    let menuMode = true;
+    let menuGroup = null;
+    let menuExplosions = [];
+    let menuFlyers = [];
+    let menuTanks = [];
+    let menuMen = [];
+    let menuNextBoom = 0.6;
+    let singleMode = false;
+    const WAVE_TURNS = 5;
+    let waveTurnsLeft = WAVE_TURNS;
+    let spTargets = [];
+    let targetGroup = null;
+    let grassGroup = null;
+
+    // Three.js core
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0f14);
+    const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.domElement.style.position = "fixed";
+    renderer.domElement.style.inset = "0";
+    renderer.domElement.style.zIndex = "0";
+    renderer.domElement.style.touchAction = "none";
+    document.body.appendChild(renderer.domElement);
+
+    // Lights
+    scene.add(new THREE.AmbientLight(0xb0c4de, 0.55));
+    const sun = new THREE.DirectionalLight(0xfff5e6, 1.15);
+    sun.position.set(6, 14, 8);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    scene.add(sun);
+    const fill = new THREE.DirectionalLight(0x88aaff, 0.35);
+    fill.position.set(-5, 6, -4);
+    scene.add(fill);
+
+    // Orbit camera — right-drag (or two-finger drag) to look around
+    const orbit = { theta: Math.PI, phi: 1.05, radius: 16 };
+    function placeCamera() {
+      const aspect = innerWidth / innerHeight;
+      camera.fov = aspect < 0.75 ? 44 : 36;
+      camera.position.x = orbit.radius * Math.sin(orbit.phi) * Math.sin(orbit.theta);
+      camera.position.y = orbit.radius * Math.cos(orbit.phi) + (menuMode ? 0.4 : 1.2);
+      camera.position.z = orbit.radius * Math.sin(orbit.phi) * Math.cos(orbit.theta);
+      if (menuMode) camera.lookAt(0.6, 0.45, 0.15);
+      else camera.lookAt(0, 0.2, -0.8);
+      camera.updateProjectionMatrix();
+    }
+    placeCamera();
+
+    let orbitHeld = false, orbitDragging = false, prevX = 0, prevY = 0;
+    let pinchStart = 0;
+
+    // ------------------------------------------------------------
+    // Board geometry: fronts face each other across BOARD_GAP
+    // Row 0 = front (toward enemy), higher r = back of stack
+    // ------------------------------------------------------------
+    function cellWorldPos(side, c, r) {
+      const x = -((COLS - 1) * CELL) / 2 + c * CELL;
+      // Front rows meet across a small center gap
+      const z = side === "player"
+        ? -BOARD_GAP / 2 - r * CELL
+        : BOARD_GAP / 2 + r * CELL;
+      return new THREE.Vector3(x, 0, z);
+    }
+
+    // Groups that hold all meshes for each side
+    const playerGroup = new THREE.Group();
+    const opponentGroup = new THREE.Group();
+    scene.add(playerGroup);
+    scene.add(opponentGroup);
+
+    // Tile meshes + unit meshes lookup: side -> "c,r" -> { tile, unit }
+    const meshMap = { player: {}, opponent: {} };
+
+    function makeEmpty() {
+      return Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    }
+
+    function makeUnitData(color) {
+      return {
+        color, locked: false, isWall: false, isCamp: false, isTank: false, isPlane: false,
+        fireTimer: 0, hp: UNIT_MAX_HP, maxHp: UNIT_MAX_HP, stars: 0, bonusDmg: 0, wallLevel: 1
+      };
+    }
+
+    function boardUnitCount(board) {
+      let n = 0;
+      for (let r = 0; r < ROWS; r++)
+        for (let c = 0; c < COLS; c++)
+          if (board[r][c]) n++;
+      return n;
+    }
+
+    function updateHP() {
+      document.getElementById("hp-player").textContent = `You: ${Math.max(0, playerHP)} HP`;
+      document.getElementById("hp-opponent").textContent = `AI: ${Math.max(0, opponentHP)} HP`;
+    }
+    function updateReserve() {
+      const btn = document.getElementById("btn-backup");
+      if (btn) btn.textContent = `Call Backup (${playerReserve})`;
+    }
+    function updateTurnUI() {
+      if (gameOver) return;
+      if (singleMode) {
+        setStatus("Map 1 — " + waveTurnsLeft + " turn" + (waveTurnsLeft === 1 ? "" : "s") + " left. " + movesLeft + " moves. Bullseye 100 / ring 50.");
+        updateSPHud();
+        return;
+      }
+      if (currentPlayer === "player") {
+        setStatus(`Your turn — ${movesLeft} move${movesLeft === 1 ? "" : "s"} left. Match to lock · locks fire after countdown.`);
+      } else {
+        setStatus("AI turn…");
+      }
+    }
+    function checkWin() {
+      if (testMode) return false;
+      if (playerHP <= 0) { gameOver = true; setStatus("You lost!"); return true; }
+      if (singleMode) {
+        if (allTargetsDead()) {
+          gameOver = true;
+          setStatus("All targets down before the 5-turn reset — you win!");
+          return true;
+        }
+        return false;
+      }
+      if (opponentHP <= 0) { gameOver = true; setStatus("You win!"); return true; }
+      return false;
+    }
+
+
+
+
+
+    // Unit meshes (green has idle anim; lock ring + timer when armed)
+    function createUnitMesh(color, locked, fireTimer, isWall) {
+      const group = new THREE.Group();
+      const hex = COLOR_HEX[color];
+      const dark = new THREE.Color(hex).multiplyScalar(0.65).getHex();
+
+      if (color === "green") {
+        // Low-poly army man — hierarchical limbs for idle anim
+        const mat = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.55 });
+        const matD = new THREE.MeshStandardMaterial({ color: dark, roughness: 0.6 });
+        const matGun = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.4, metalness: 0.3 });
+        const matBoot = new THREE.MeshStandardMaterial({ color: 0x1b3d1f, roughness: 0.8 });
+
+        // Hips / lower body anchor
+        const hips = new THREE.Group();
+        hips.position.y = 0.28;
+
+        // Legs (from hips)
+        const legL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.28, 0.1), mat);
+        legL.position.set(-0.09, -0.14, 0);
+        legL.castShadow = true;
+        hips.add(legL);
+        const bootL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.16), matBoot);
+        bootL.position.set(-0.09, -0.3, 0.02);
+        hips.add(bootL);
+
+        const legR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.28, 0.1), mat);
+        legR.position.set(0.09, -0.14, 0);
+        legR.castShadow = true;
+        hips.add(legR);
+        const bootR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.16), matBoot);
+        bootR.position.set(0.09, -0.3, 0.02);
+        hips.add(bootR);
+
+        group.add(hips);
+
+        // Torso (animated slightly)
+        const torso = new THREE.Group();
+        torso.position.y = 0.42;
+        torso.name = "torso";
+        const torsoMesh = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.34, 0.18), mat);
+        torsoMesh.castShadow = true;
+        torso.add(torsoMesh);
+        // belt
+        const belt = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.05, 0.2), matD);
+        belt.position.y = -0.14;
+        torso.add(belt);
+        // pack
+        const pack = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.08), matD);
+        pack.position.set(0, 0.02, -0.13);
+        torso.add(pack);
+
+        // Head + helmet on torso
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), mat);
+        head.position.y = 0.28;
+        head.castShadow = true;
+        torso.add(head);
+        const helmet = new THREE.Mesh(
+          new THREE.SphereGeometry(0.13, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.55),
+          matD
+        );
+        helmet.position.y = 0.3;
+        torso.add(helmet);
+        // brim
+        const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.15, 0.03, 12), matD);
+        brim.position.y = 0.24;
+        torso.add(brim);
+
+        // Left arm (idle swing)
+        const armL = new THREE.Group();
+        armL.position.set(-0.2, 0.1, 0);
+        armL.name = "armL";
+        const armLMesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.28, 0.08), mat);
+        armLMesh.position.y = -0.12;
+        armLMesh.castShadow = true;
+        armL.add(armLMesh);
+        torso.add(armL);
+
+        // Right arm + rifle
+        const armR = new THREE.Group();
+        armR.position.set(0.2, 0.1, 0);
+        armR.name = "armR";
+        const armRMesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.22, 0.08), mat);
+        armRMesh.position.y = -0.08;
+        armRMesh.castShadow = true;
+        armR.add(armRMesh);
+        // rifle held forward
+        const rifle = new THREE.Group();
+        rifle.position.set(0.05, -0.12, 0.18);
+        const stock = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.45), matGun);
+        rifle.add(stock);
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.2), matGun);
+        barrel.position.z = 0.28;
+        rifle.add(barrel);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.1, 0.04), matGun);
+        grip.position.set(0, -0.05, -0.05);
+        rifle.add(grip);
+        armR.add(rifle);
+        torso.add(armR);
+
+        group.add(torso);
+        group.userData.idle = true; // mark for breathing animation
+      } else if (color === "blue") {
+        const tank = buildTankModel(0.7, 0.56);
+        tank.position.y = 0.02;
+        group.add(tank);
+        group.userData.isTankModel = true;
+      } else {
+        const pl = buildPlaneModel();
+        pl.position.y = 0.02;
+        group.add(pl);
+      }
+
+      // Gold lock ring when matched
+      if (locked) {
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(0.38, 0.035, 8, 24),
+          new THREE.MeshBasicMaterial({ color: isWall ? 0xb0bec5 : 0xffe082 })
+        );
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = 0.08;
+        group.add(ring);
+        // Countdown badge for armed (non-wall) locks
+        if (!isWall && fireTimer > 0) {
+          group.add(makeTimerSprite(fireTimer));
+        }
+      }
+
+      group.userData.isUnit = true;
+      return group;
+    }
+    BM.createUnitMesh = createUnitMesh;
+
+
+    // Security barrier — `len` adjacent cells become ONE connected wall (half height)
+    function createWallMesh(len, wallLevel) {
+      const group = new THREE.Group();
+      len = Math.max(1, len);
+      const doubled = (wallLevel || 1) >= 2;
+      const width = len * CELL;
+      const matConc = new THREE.MeshStandardMaterial({ color: doubled ? 0x607d8b : 0x78909c, roughness: 0.85 });
+      const matDark = new THREE.MeshStandardMaterial({ color: doubled ? 0x37474f : 0x455a64, roughness: 0.7, metalness: 0.2 });
+      const matWire = new THREE.MeshStandardMaterial({ color: 0x90a4ae, metalness: 0.6, roughness: 0.35 });
+      const matRust = new THREE.MeshStandardMaterial({ color: 0x6d4c41, roughness: 0.8 });
+
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.98, 0.12, CELL * 0.55),
+        matConc
+      );
+      base.position.y = 0.08;
+      base.castShadow = true;
+      group.add(base);
+
+      // Single = half height. Doubled = stacked / thicker barrier.
+      const panelH = doubled ? 0.92 : 0.48;
+      const panel = new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.96, panelH, doubled ? 0.18 : 0.12),
+        matDark
+      );
+      panel.position.y = 0.12 + panelH / 2;
+      panel.castShadow = true;
+      group.add(panel);
+
+      const postH = doubled ? 1.08 : 0.62;
+      for (let i = 0; i <= len; i++) {
+        const x = -width / 2 + i * CELL;
+        const post = new THREE.Mesh(
+          new THREE.BoxGeometry(0.08, postH, 0.08),
+          matConc
+        );
+        post.position.set(x, postH / 2 + 0.06, 0);
+        post.castShadow = true;
+        group.add(post);
+      }
+
+      const railYs = doubled ? [0.28, 0.48, 0.72, 0.92] : [0.28, 0.48];
+      for (const y of railYs) {
+        const rail = new THREE.Mesh(
+          new THREE.BoxGeometry(width * 0.94, 0.035, 0.04),
+          matWire
+        );
+        rail.position.set(0, y, doubled ? 0.12 : 0.08);
+        group.add(rail);
+      }
+
+      const wireY = doubled ? 1.12 : 0.66;
+      const coils = Math.max(3, len * 3);
+      for (let i = 0; i < coils; i++) {
+        const x = -width / 2 + 0.2 + i * ((width - 0.4) / Math.max(1, coils - 1));
+        const coil = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.014, 6, 10), matWire);
+        coil.position.set(x, wireY, 0.02);
+        coil.rotation.y = Math.PI / 2;
+        coil.rotation.z = (i % 2) * 0.25;
+        group.add(coil);
+      }
+      for (let i = 0; i < len * 2; i++) {
+        const strand = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.2), matRust);
+        strand.position.set(-width / 2 + 0.25 + i * (width / Math.max(1, len * 2)), wireY + 0.04, 0.05);
+        strand.rotation.x = 0.35 * (i % 2 === 0 ? 1 : -1);
+        group.add(strand);
+      }
+
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.96, 0.07, doubled ? 0.2 : 0.13),
+        new THREE.MeshStandardMaterial({ color: doubled ? 0xff9800 : 0xffc107, roughness: 0.6 })
+      );
+      // Same height on single and double so adjacent levels line up
+      stripe.position.y = 0.34;
+      group.add(stripe);
+
+      if (doubled) {
+        const star = makeStarSprite();
+        star.position.set(0, panelH + 0.28, 0.05);
+        group.add(star);
+      }
+
+      group.userData.isUnit = true;
+      group.userData.isWallMesh = true;
+      return group;
+    }
+
+
+
+
+    function createTile(side, c, r) {
+      // Player board = blue tint, opponent = red tint so sides are obvious
+      const even = (c + r) % 2 === 0;
+      let color;
+      if (side === "player") {
+        color = even ? 0x1a3048 : 0x243a58;
+      } else {
+        color = even ? 0x3a1e1e : 0x4a2828;
+      }
+      const geo = new THREE.BoxGeometry(CELL * 0.92, 0.12, CELL * 0.92);
+      const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
+      const tile = new THREE.Mesh(geo, mat);
+      tile.receiveShadow = true;
+      const pos = cellWorldPos(side, c, r);
+      tile.position.copy(pos);
+      tile.position.y = 0.06;
+      tile.userData = { side, c, r, isTile: true };
+
+      // Rim: brighter edge color by side
+      const rim = new THREE.Mesh(
+        new THREE.BoxGeometry(CELL * 0.96, 0.04, CELL * 0.96),
+        new THREE.MeshStandardMaterial({
+          color: side === "player" ? 0x1565c0 : 0xc62828
+        })
+      );
+      rim.position.copy(pos);
+      rim.position.y = 0.02;
+
+      const group = side === "player" ? playerGroup : opponentGroup;
+      group.add(rim);
+      group.add(tile);
+      return tile;
+    }
+
+    function rebuildSide(side) {
+      const board = side === "player" ? playerBoard : opponentBoard;
+      const group = side === "player" ? playerGroup : opponentGroup;
+
+      // Remove old unit meshes only (tiles stay)
+      Object.values(meshMap[side]).forEach(entry => {
+        if (entry.unit) {
+          group.remove(entry.unit);
+          entry.unit = null;
+        }
+      });
+      // Remove previous camp / tank meshes tracked for this side
+      campMeshes[side].forEach(m => group.remove(m));
+      campMeshes[side] = [];
+      tankMeshes[side].forEach(m => group.remove(m));
+      tankMeshes[side] = [];
+      planeMeshes[side].forEach(m => group.remove(m));
+      planeMeshes[side] = [];
+
+      const covered = new Set(); // cells drawn as part of a camp
+
+      // Green camps: consecutive locked green isCamp cells in a column
+      for (let c = 0; c < COLS; c++) {
+        let r = 0;
+        while (r < ROWS) {
+          const cell = board[r][c];
+          if (!cell || !cell.locked || !cell.isCamp || cell.color !== "green") {
+            r++;
+            continue;
+          }
+          let len = 1;
+          while (r + len < ROWS) {
+            const n = board[r + len][c];
+            if (!n || !n.locked || !n.isCamp || n.color !== "green") break;
+            len++;
+          }
+          // Build one camp mesh spanning the run
+          const camp = createCampMesh(len, cell.fireTimer, side, cell.stars || 0);
+          const front = cellWorldPos(side, c, r);
+          const back = cellWorldPos(side, c, r + len - 1);
+          camp.position.set(
+            front.x,
+            0.12,
+            (front.z + back.z) / 2
+          );
+          camp.rotation.y = side === "player" ? 0 : Math.PI;
+          camp.userData.side = side;
+          camp.userData.c = c;
+          camp.userData.r = r;
+          camp.userData.isUnit = true;
+          group.add(camp);
+          campMeshes[side].push(camp);
+
+          for (let i = 0; i < len; i++) {
+            const key = c + "," + (r + i);
+            covered.add(key);
+            if (!meshMap[side][key]) {
+              meshMap[side][key] = { tile: createTile(side, c, r + i), unit: null };
+            }
+            // Raycast hits: put a invisible proxy? attach camp to first cell entry
+            if (i === 0) meshMap[side][key].unit = camp;
+          }
+          r += len;
+        }
+      }
+
+      // Blue tanks: consecutive locked blue isTank cells in a column
+      for (let c = 0; c < COLS; c++) {
+        let r = 0;
+        while (r < ROWS) {
+          const cell = board[r][c];
+          if (!cell || !cell.locked || !cell.isTank || cell.color !== "blue") {
+            r++;
+            continue;
+          }
+          let len = 1;
+          while (r + len < ROWS) {
+            const n = board[r + len][c];
+            if (!n || !n.locked || !n.isTank || n.color !== "blue") break;
+            len++;
+          }
+          const tank = createBigTankMesh(len, cell.fireTimer, cell.stars || 0);
+          const front = cellWorldPos(side, c, r);
+          const back = cellWorldPos(side, c, r + len - 1);
+          tank.position.set(front.x, 0.12, (front.z + back.z) / 2);
+          tank.rotation.y = side === "player" ? 0 : Math.PI;
+          tank.userData.side = side;
+          tank.userData.c = c;
+          tank.userData.r = r;
+          tank.userData.isUnit = true;
+          group.add(tank);
+          tankMeshes[side].push(tank);
+          for (let i = 0; i < len; i++) {
+            const key = c + "," + (r + i);
+            covered.add(key);
+            if (!meshMap[side][key]) {
+              meshMap[side][key] = { tile: createTile(side, c, r + i), unit: null };
+            }
+            if (i === 0) meshMap[side][key].unit = tank;
+          }
+          r += len;
+        }
+      }
+
+      // Red planes: consecutive locked red isPlane cells in a column
+      for (let c = 0; c < COLS; c++) {
+        let r = 0;
+        while (r < ROWS) {
+          const cell = board[r][c];
+          if (!cell || !cell.locked || !cell.isPlane || cell.color !== "red") {
+            r++;
+            continue;
+          }
+          let len = 1;
+          while (r + len < ROWS) {
+            const n = board[r + len][c];
+            if (!n || !n.locked || !n.isPlane || n.color !== "red") break;
+            len++;
+          }
+          const plane = createBigPlaneMesh(len, cell.fireTimer, cell.stars || 0);
+          const front = cellWorldPos(side, c, r);
+          const back = cellWorldPos(side, c, r + len - 1);
+          plane.position.set(front.x, 0.18, (front.z + back.z) / 2);
+          plane.rotation.y = side === "player" ? 0 : Math.PI;
+          plane.userData.side = side;
+          plane.userData.c = c;
+          plane.userData.r = r;
+          plane.userData.isUnit = true;
+          group.add(plane);
+          planeMeshes[side].push(plane);
+          for (let i = 0; i < len; i++) {
+            const key = c + "," + (r + i);
+            covered.add(key);
+            if (!meshMap[side][key]) {
+              meshMap[side][key] = { tile: createTile(side, c, r + i), unit: null };
+            }
+            if (i === 0) meshMap[side][key].unit = plane;
+          }
+          r += len;
+        }
+      }
+
+      // Connected walls: consecutive isWall cells in the same row become one barrier
+      for (let r = 0; r < ROWS; r++) {
+        let c = 0;
+        while (c < COLS) {
+          const cell = board[r][c];
+          if (!cell || !cell.isWall || covered.has(c + "," + r)) { c++; continue; }
+          const level = cell.wallLevel || 1;
+          let len = 1;
+          while (c + len < COLS) {
+            const n = board[r][c + len];
+            if (!n || !n.isWall || covered.has((c + len) + "," + r)) break;
+            if ((n.wallLevel || 1) !== level) break;
+            len++;
+          }
+          const wall = createWallMesh(len, level);
+          const left = cellWorldPos(side, c, r);
+          const right = cellWorldPos(side, c + len - 1, r);
+          wall.position.set((left.x + right.x) / 2, 0.12, left.z);
+          wall.rotation.y = side === "player" ? 0 : Math.PI;
+          wall.userData = { side, c, r, isUnit: true, isWallMesh: true, wallStart: c, wallLen: len };
+          group.add(wall);
+          for (let i = 0; i < len; i++) {
+            const key = (c + i) + "," + r;
+            covered.add(key);
+            if (!meshMap[side][key]) {
+              meshMap[side][key] = { tile: createTile(side, c + i, r), unit: null };
+            }
+            if (i === 0) meshMap[side][key].unit = wall;
+          }
+          c += len;
+        }
+      }
+
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const key = c + "," + r;
+          if (!meshMap[side][key]) {
+            meshMap[side][key] = { tile: createTile(side, c, r), unit: null };
+          }
+          if (covered.has(key)) continue;
+          const cell = board[r][c];
+          if (cell) {
+            const unit = createUnitMesh(cell.color, cell.locked, cell.fireTimer, cell.isWall);
+            const pos = cellWorldPos(side, c, r);
+            unit.position.copy(pos);
+            unit.position.y = 0.12;
+            unit.rotation.y = side === "player" ? 0 : Math.PI;
+            unit.userData = { side, c, r, isUnit: true };
+            group.add(unit);
+            meshMap[side][key].unit = unit;
+          }
+        }
+      }
+    }
+
+    function runLen(board, r, c, color, dr, dc) {
+      let n = 0;
+      let rr = r + dr, cc = c + dc;
+      while (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS) {
+        const cell = board[rr][cc];
+        if (!cell || cell.locked || cell.isWall || cell.color !== color) break;
+        n++;
+        rr += dr;
+        cc += dc;
+      }
+      return n;
+    }
+
+    // True if putting this color at r,c would make a free 3+ run
+    function wouldCreateMatch(board, r, c, color) {
+      const vert = 1 + runLen(board, r, c, color, -1, 0) + runLen(board, r, c, color, 1, 0);
+      const horz = 1 + runLen(board, r, c, color, 0, -1) + runLen(board, r, c, color, 0, 1);
+      return vert >= 3 || horz >= 3;
+    }
+
+    function hasAnyFreeMatch(board) {
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = board[r][c];
+          if (!cell || cell.locked) continue;
+          if (wouldCreateMatch(board, r, c, cell.color)) return true;
+        }
+      }
+      return false;
+    }
+
+    // Recolor any accidental 3-matches (start / backup must never lock)
+    function scrubFreeMatches(board) {
+      for (let pass = 0; pass < 12 && hasAnyFreeMatch(board); pass++) {
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const cell = board[r][c];
+            if (!cell || cell.locked) continue;
+            if (!wouldCreateMatch(board, r, c, cell.color)) continue;
+            let color, tries = 0;
+            do {
+              color = COLORS[Math.floor(Math.random() * COLORS.length)];
+              tries++;
+            } while (wouldCreateMatch(board, r, c, color) && tries < 40);
+            cell.color = color;
+            cell.isCamp = false;
+            cell.isTank = false;
+            cell.isPlane = false;
+          }
+        }
+      }
+    }
+
+    function fillBoard(board) {
+      // Pack up to MAX_ON_BOARD from the front — never create a 3-match
+      let placed = 0;
+      const max = MAX_ON_BOARD;
+      for (let r = 0; r < ROWS && placed < max; r++) {
+        for (let c = 0; c < COLS && placed < max; c++) {
+          let color, tries = 0;
+          do {
+            color = COLORS[Math.floor(Math.random() * COLORS.length)];
+            tries++;
+          } while (wouldCreateMatch(board, r, c, color) && tries < 40);
+          board[r][c] = makeUnitData(color);
+          placed++;
+        }
+      }
+      scrubFreeMatches(board);
+    }
+
+    function setStatus(msg) {
+      document.getElementById("status").textContent = msg;
+    }
+
+    // ----- Audio (gun cock on match) -----
+    let audioCtx = null;
+    function ensureAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    }
+    function playGunCockSound() {
+      try {
+        ensureAudio();
+        const t = audioCtx.currentTime;
+        const o1 = audioCtx.createOscillator();
+        const g1 = audioCtx.createGain();
+        o1.type = "square";
+        o1.frequency.setValueAtTime(220, t);
+        o1.frequency.exponentialRampToValueAtTime(90, t + 0.08);
+        g1.gain.setValueAtTime(0.12, t);
+        g1.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        o1.connect(g1); g1.connect(audioCtx.destination);
+        o1.start(t); o1.stop(t + 0.11);
+        const o2 = audioCtx.createOscillator();
+        const g2 = audioCtx.createGain();
+        o2.type = "triangle";
+        o2.frequency.setValueAtTime(480, t + 0.09);
+        o2.frequency.exponentialRampToValueAtTime(120, t + 0.16);
+        g2.gain.setValueAtTime(0.2, t + 0.09);
+        g2.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        o2.connect(g2); g2.connect(audioCtx.destination);
+        o2.start(t + 0.09); o2.stop(t + 0.2);
+        const o3 = audioCtx.createOscillator();
+        const g3 = audioCtx.createGain();
+        o3.type = "sine";
+        o3.frequency.setValueAtTime(70, t + 0.14);
+        g3.gain.setValueAtTime(0.15, t + 0.14);
+        g3.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+        o3.connect(g3); g3.connect(audioCtx.destination);
+        o3.start(t + 0.14); o3.stop(t + 0.3);
+      } catch (e) {}
+    }
+    // Hammer / construction sound for wall matches
+    function playHammerSound() {
+      try {
+        ensureAudio();
+        const t = audioCtx.currentTime;
+        for (let i = 0; i < 3; i++) {
+          const start = t + i * 0.12;
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.type = "square";
+          o.frequency.setValueAtTime(90 - i * 8, start);
+          o.frequency.exponentialRampToValueAtTime(40, start + 0.08);
+          g.gain.setValueAtTime(0.22, start);
+          g.gain.exponentialRampToValueAtTime(0.001, start + 0.1);
+          o.connect(g); g.connect(audioCtx.destination);
+          o.start(start); o.stop(start + 0.12);
+          // metallic ring after each hit
+          const o2 = audioCtx.createOscillator();
+          const g2 = audioCtx.createGain();
+          o2.type = "triangle";
+          o2.frequency.setValueAtTime(520 - i * 40, start + 0.02);
+          o2.frequency.exponentialRampToValueAtTime(200, start + 0.1);
+          g2.gain.setValueAtTime(0.1, start + 0.02);
+          g2.gain.exponentialRampToValueAtTime(0.001, start + 0.12);
+          o2.connect(g2); g2.connect(audioCtx.destination);
+          o2.start(start + 0.02); o2.stop(start + 0.14);
+        }
+      } catch (e) {}
+    }
+
+    // Selection highlight
+    let selectRing = null;
+    function clearSelectRing() {
+      if (selectRing) {
+        scene.remove(selectRing);
+        selectRing = null;
+      }
+    }
+    function showSelectRing(side, c, r) {
+      clearSelectRing();
+      selectRing = new THREE.Mesh(
+        new THREE.TorusGeometry(0.35, 0.04, 8, 24),
+        new THREE.MeshBasicMaterial({ color: 0x4fc3f7 })
+      );
+      const pos = cellWorldPos(side, c, r);
+      selectRing.position.set(pos.x, 0.2, pos.z);
+      selectRing.rotation.x = Math.PI / 2;
+      scene.add(selectRing);
+    }
+
+    // Raycaster for clicks
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    function getBackRow(board, col) {
+      for (let r = ROWS - 1; r >= 0; r--) if (board[r][col]) return r;
+      return -1;
+    }
+    function columnCount(board, col) {
+      let n = 0;
+      for (let r = 0; r < ROWS; r++) if (board[r][col]) n++;
+      return n;
+    }
+    // Walls at very front, then other locks, then free units (small gap feel)
+    function makeWallCell() {
+      return {
+        color: "wall", locked: true, isWall: true, isCamp: false, isTank: false, isPlane: false,
+        fireTimer: 0, hp: UNIT_MAX_HP, maxHp: UNIT_MAX_HP, stars: 0, bonusDmg: 0, wallLevel: 1
+      };
+    }
+
+    function applyGravity(board) {
+      for (let c = 0; c < COLS; c++) {
+        const walls = [], locked = [], free = [];
+        for (let r = 0; r < ROWS; r++) {
+          const cell = board[r][c];
+          if (!cell) continue;
+          if (cell.isWall) walls.push(cell);
+          else if (cell.locked) locked.push(cell);
+          else free.push(cell);
+        }
+        for (let r = 0; r < ROWS; r++) board[r][c] = null;
+        let i = 0;
+        for (const g of walls) if (i < ROWS) board[i++][c] = g;
+        for (const g of locked) if (i < ROWS) board[i++][c] = g;
+        for (const g of free) if (i < ROWS) board[i++][c] = g;
+      }
+      mergeWalls(board);
+    }
+
+    // Second wall in a column merges into the FRONT wall once (double).
+    // A 3rd wall stays behind and does not merge.
+    function mergeWalls(board) {
+      const isPlayer = board === playerBoard;
+      for (let c = 0; c < COLS; c++) {
+        const rows = [];
+        for (let r = 0; r < ROWS; r++) {
+          if (board[r][c] && board[r][c].isWall) rows.push(r);
+        }
+        if (rows.length < 2) continue;
+        const front = board[rows[0]][c];
+        if ((front.wallLevel || 1) >= 2) continue;
+        const extra = board[rows[1]][c];
+        front.wallLevel = 2;
+        front.stars = 1;
+        front.hp = (front.hp || UNIT_MAX_HP) + (extra.hp || UNIT_MAX_HP);
+        front.maxHp = (front.maxHp || UNIT_MAX_HP) + (extra.maxHp || UNIT_MAX_HP);
+        board[rows[1]][c] = null;
+        if (isPlayer) playerReserve++;
+        else opponentReserve++;
+        updateReserve();
+        // pack this column only (avoid re-entry loop)
+        const kept = [];
+        for (let r = 0; r < ROWS; r++) if (board[r][c]) kept.push(board[r][c]);
+        for (let r = 0; r < ROWS; r++) board[r][c] = null;
+        for (let i = 0; i < kept.length && i < ROWS; i++) board[i][c] = kept[i];
+      }
+    }
+    function isMovable(board, r, c) {
+      const cell = board[r][c];
+      if (!cell || cell.locked) return false;
+      return getBackRow(board, c) === r; // only the back unlocked unit
+    }
+
+    // Vertical matches → armed lock (camp/tank/plane)
+    // Horizontal matches → wall
+    // Overlap: that cell stays a WALL; the rest of the column still forms
+    // the armed unit BEHIND the wall.
+    function findMatchFlags(board) {
+      const flags = new Map();
+      function flag(key, color, wall, armed) {
+        const cur = flags.get(key) || { wall: false, armed: false, color };
+        if (wall) cur.wall = true;
+        if (armed) cur.armed = true;
+        cur.color = color;
+        flags.set(key, cur);
+      }
+      for (let c = 0; c < COLS; c++) {
+        let r = 0;
+        while (r < ROWS) {
+          const cell = board[r][c];
+          if (!cell || cell.locked) { r++; continue; }
+          let len = 1;
+          while (r + len < ROWS) {
+            const n = board[r + len][c];
+            if (!n || n.locked || n.color !== cell.color) break;
+            len++;
+          }
+          if (len >= 3) {
+            const groups = Math.floor(len / 3);
+            for (let g = 0; g < groups; g++) {
+              for (let i = 0; i < 3; i++) {
+                flag((r + g * 3 + i) + "," + c, cell.color, false, true);
+              }
+            }
+          }
+          r += len;
+        }
+      }
+      for (let r = 0; r < ROWS; r++) {
+        let c = 0;
+        while (c < COLS) {
+          const cell = board[r][c];
+          if (!cell || cell.locked) { c++; continue; }
+          let len = 1;
+          while (c + len < COLS) {
+            const n = board[r][c + len];
+            if (!n || n.locked || n.color !== cell.color) break;
+            len++;
+          }
+          if (len >= 3) {
+            for (let i = 0; i < len; i++) flag(r + "," + (c + i), cell.color, true, false);
+          }
+          c += len;
+        }
+      }
+      return flags;
+    }
+
+    function lockCellAsUnit(cell) {
+      if (!cell || cell.isWall) return;
+      cell.locked = true;
+      cell.isWall = false;
+      cell.isCamp = cell.color === "green";
+      cell.isTank = cell.color === "blue";
+      cell.isPlane = cell.color === "red";
+      cell.fireTimer = FIRE_TURNS[cell.color];
+    }
+
+    // Lock every free vertical group of 3 (camp / tank / plane).
+    function lockFreeVerticals(board) {
+      let any = false;
+      for (let c = 0; c < COLS; c++) {
+        let r = 0;
+        while (r < ROWS) {
+          const cell = board[r][c];
+          if (!cell || cell.locked) { r++; continue; }
+          let len = 1;
+          while (r + len < ROWS) {
+            const n = board[r + len][c];
+            if (!n || n.locked || n.color !== cell.color) break;
+            len++;
+          }
+          if (len >= 3) {
+            const groups = Math.floor(len / 3);
+            for (let g = 0; g < groups; g++) {
+              for (let i = 0; i < 3; i++) {
+                lockCellAsUnit(board[r + g * 3 + i][c]);
+                any = true;
+              }
+            }
+          }
+          r += len;
+        }
+      }
+      return any;
+    }
+
+    // Only plug a 1-cell hole (W · unit · W). Never fill the span
+    // between two separate wall segments — that spawned mystery walls.
+    function sealWallLineHoles(board) {
+      let any = false;
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 1; c < COLS - 1; c++) {
+          const left = board[r][c - 1];
+          const right = board[r][c + 1];
+          const cell = board[r][c];
+          if (!left || !left.isWall || !right || !right.isWall) continue;
+          if (!cell || cell.isWall) continue;
+          if (board[ROWS - 1][c]) continue;
+          for (let rr = ROWS - 1; rr > r; rr--) board[rr][c] = board[rr - 1][c];
+          const w = makeWallCell();
+          w.wallLevel = left.wallLevel || 1;
+          if (w.wallLevel >= 2) {
+            w.stars = 1;
+            w.hp = UNIT_MAX_HP * 2;
+            w.maxHp = UNIT_MAX_HP * 2;
+          }
+          board[r][c] = w;
+          any = true;
+        }
+      }
+      return any;
+    }
+
+    function applyMatchFlags(board, flags, allowWalls) {
+      let anyWall = false, anyArmed = false;
+      const bothCols = {};
+      for (const [key, f] of flags) {
+        const c = +key.split(",")[1];
+        if (f.wall && f.armed) bothCols[c] = true;
+      }
+
+      // Units first so a vertical 3 is never eaten by the wall pass.
+      for (const [key, f] of flags) {
+        const [r, c] = key.split(",").map(Number);
+        const cell = board[r][c];
+        if (!cell || cell.locked) continue;
+        if (f.armed) {
+          lockCellAsUnit(cell);
+          anyArmed = true;
+        }
+      }
+      if (lockFreeVerticals(board)) anyArmed = true;
+
+      if (allowWalls) {
+        for (const [key, f] of flags) {
+          const [r, c] = key.split(",").map(Number);
+          const cell = board[r][c];
+          if (!cell || cell.locked) continue;
+          if (!f.wall) continue;
+          cell.locked = true;
+          cell.isWall = true;
+          cell.isCamp = false;
+          cell.isTank = false;
+          cell.isPlane = false;
+          cell.fireTimer = 0;
+          cell.fromColor = cell.color;
+          cell.color = "wall";
+          cell.wallLevel = cell.wallLevel || 1;
+          anyWall = true;
+        }
+      }
+
+      applyGravity(board);
+
+      if (allowWalls) {
+        for (const cStr of Object.keys(bothCols)) {
+          const c = +cStr;
+          if (board[0][c] && board[0][c].isWall) continue;
+          if (board[ROWS - 1][c]) continue;
+          for (let r = ROWS - 1; r > 0; r--) board[r][c] = board[r - 1][c];
+          board[0][c] = makeWallCell();
+          anyWall = true;
+        }
+        if (lockFreeHorizontals(board)) {
+          anyWall = true;
+          applyGravity(board);
+        }
+        if (anyWall) sealWallLineHoles(board);
+      }
+
+      if (lockFreeVerticals(board)) anyArmed = true;
+      applyGravity(board);
+      return { anyWall, anyArmed };
+    }
+
+    // Remaining free 3+ in a row → wall (used after gravity so chained
+    // horizontal matches lock on the same move).
+    function lockFreeHorizontals(board) {
+      let any = false;
+      for (let r = 0; r < ROWS; r++) {
+        let c = 0;
+        while (c < COLS) {
+          const cell = board[r][c];
+          if (!cell || cell.locked) { c++; continue; }
+          let len = 1;
+          while (c + len < COLS) {
+            const n = board[r][c + len];
+            if (!n || n.locked || n.color !== cell.color) break;
+            len++;
+          }
+          if (len >= 3) {
+            for (let i = 0; i < len; i++) {
+              const x = board[r][c + i];
+              x.locked = true;
+              x.isWall = true;
+              x.isCamp = false;
+              x.isTank = false;
+              x.isPlane = false;
+              x.fireTimer = 0;
+              x.fromColor = x.color;
+              x.color = "wall";
+              x.wallLevel = x.wallLevel || 1;
+              any = true;
+            }
+          }
+          c += len;
+        }
+      }
+      return any;
+    }
+
+    function checkAndLockMatches(board) {
+      const before = countLocks(board);
+      let anyWall = false, anyArmed = false, any = false;
+      // Every pass: units first, then walls. Later passes still make walls
+      // so a 3-in-a-row that only lines up after gravity locks this turn.
+      for (let pass = 0; pass < 8; pass++) {
+        const flags = findMatchFlags(board);
+        if (flags.size === 0) break;
+        any = true;
+        const res = applyMatchFlags(board, flags, true);
+        if (res.anyWall) anyWall = true;
+        if (res.anyArmed) anyArmed = true;
+        mergeStackedFormations(board);
+      }
+      if (anyWall) playHammerSound();
+      if (anyArmed) playGunCockSound();
+      lastLockDesc = describeLockDelta(before, countLocks(board));
+      return any;
+    }
+
+    // If a new formation stacks under an existing one of the same type,
+    // keep the front unit + its timer, send extra 3 to reserve, add a star.
+    function mergeStackedFormations(board) {
+      const isPlayer = board === playerBoard;
+      const kinds = ["isTank", "isCamp", "isPlane"];
+      for (let c = 0; c < COLS; c++) {
+        for (const kind of kinds) {
+          const rows = [];
+          for (let r = 0; r < ROWS; r++) {
+            const cell = board[r][c];
+            if (cell && cell.locked && cell[kind]) rows.push(r);
+          }
+          while (rows.length >= 6) {
+            const keep = rows.slice(0, 3);
+            const drop = rows.slice(3, 6);
+            const head = board[keep[0]][c];
+            const color = head.color;
+            head.stars = (head.stars || 0) + 1;
+            head.bonusDmg = (head.bonusDmg || 0) + FIRE_DMG[color] * 3;
+            head.hp += UNIT_MAX_HP;
+            head.maxHp += UNIT_MAX_HP;
+            for (const r of keep) {
+              if (board[r][c]) {
+                board[r][c].stars = head.stars;
+                board[r][c].bonusDmg = head.bonusDmg;
+                board[r][c].hp = head.hp;
+                board[r][c].maxHp = head.maxHp;
+                board[r][c].fireTimer = head.fireTimer; // keep top tank timer
+              }
+            }
+            for (const r of drop) {
+              board[r][c] = null;
+              if (isPlayer) playerReserve++;
+              else opponentReserve++;
+            }
+            updateReserve();
+            applyGravity(board);
+            rows.length = 0;
+            for (let r = 0; r < ROWS; r++) {
+              const cell = board[r][c];
+              if (cell && cell.locked && cell[kind]) rows.push(r);
+            }
+          }
+        }
+      }
+    }
+
+    // Fire at start of turn: decrement timers, fire when 0
+    function processFiring(board, isPlayerBoard) {
+      const firers = [];
+      const toRemove = [];
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = board[r][c];
+          if (cell && cell.locked && !cell.isWall && cell.fireTimer > 0) {
+            cell.fireTimer--;
+            if (cell.fireTimer <= 0) {
+              firers.push({
+                col: c, color: cell.color,
+                dmg: FIRE_DMG[cell.color],
+                bonus: cell.bonusDmg || 0,
+                stars: cell.stars || 0,
+                r,
+                isCamp: !!cell.isCamp, isTank: !!cell.isTank, isPlane: !!cell.isPlane
+              });
+              toRemove.push({ r, c });
+            }
+          }
+        }
+      }
+      for (const { r, c } of toRemove) {
+        board[r][c] = null;
+        if (isPlayerBoard) playerReserve++;
+        else opponentReserve++;
+      }
+      if (toRemove.length) applyGravity(board);
+      updateReserve();
+      dispatchFire(firers, isPlayerBoard);
+      return firers.length;
+    }
+
+    function fireNowAt(board, r, c) {
+      // Instant fire is TEST map only. Single / VS must use the turn countdown.
+      if (!testMode) return;
+      const cell = board[r][c];
+      if (!cell || !cell.locked || cell.isWall) {
+        setStatus("Nothing to fire there.");
+        return;
+      }
+      pushTestUndo();
+      const isPlayer = board === playerBoard;
+      const kind = cell.isTank ? "isTank" : cell.isCamp ? "isCamp" : cell.isPlane ? "isPlane" : "single";
+      const firers = [];
+      const toRemove = [];
+      for (let rr = 0; rr < ROWS; rr++) {
+        const u = board[rr][c];
+        if (!u || !u.locked || u.isWall) continue;
+        const same = kind === "single" ? (rr === r) : !!u[kind];
+        if (!same) continue;
+        firers.push({
+          col: c, color: u.color, dmg: FIRE_DMG[u.color] || 0,
+          bonus: u.bonusDmg || 0,
+          stars: u.stars || 0,
+          r: rr,
+          isCamp: !!u.isCamp, isTank: !!u.isTank, isPlane: !!u.isPlane
+        });
+        toRemove.push({ r: rr, c });
+      }
+      for (const p of toRemove) {
+        board[p.r][p.c] = null;
+        if (isPlayer) playerReserve++;
+        else opponentReserve++;
+      }
+      applyGravity(board);
+      updateReserve();
+      dispatchFire(firers, isPlayer);
+      rebuildSide("player");
+      if (!testMode) rebuildSide("opponent");
+      let atk = 0;
+      for (const f of firers) atk += f.dmg + (f.bonus || 0);
+      lastTestAtk = atk;
+      setStatus(testMode ? ("TEST fire — ATK " + atk + ". No winner.") : "Fired!");
+    }
+
+    function dispatchFire(firers, isPlayer) {
+      const campCols = {}, tankCols = {}, planeCols = {};
+      const campB = {}, tankB = {}, planeB = {};
+      const campStars = {}, campR = {};
+      const tankStars = {}, tankR = {};
+      const planeStars = {}, planeR = {};
+      for (const f of firers) {
+        if (f.color === "green" && f.isCamp) {
+          campCols[f.col] = (campCols[f.col] || 0) + f.dmg;
+          campB[f.col] = Math.max(campB[f.col] || 0, f.bonus || 0);
+          campStars[f.col] = Math.max(campStars[f.col] || 0, f.stars || 0);
+          campR[f.col] = Math.min(campR[f.col] ?? 99, f.r ?? 0);
+        } else if (f.color === "blue" && f.isTank) {
+          tankCols[f.col] = (tankCols[f.col] || 0) + f.dmg;
+          tankB[f.col] = Math.max(tankB[f.col] || 0, f.bonus || 0);
+          tankStars[f.col] = Math.max(tankStars[f.col] || 0, f.stars || 0);
+          tankR[f.col] = Math.min(tankR[f.col] ?? 99, f.r ?? 0);
+        } else if (f.color === "red" && f.isPlane) {
+          planeCols[f.col] = (planeCols[f.col] || 0) + f.dmg;
+          planeB[f.col] = Math.max(planeB[f.col] || 0, f.bonus || 0);
+          planeStars[f.col] = Math.max(planeStars[f.col] || 0, f.stars || 0);
+          planeR[f.col] = Math.min(planeR[f.col] ?? 99, f.r ?? 0);
+        } else {
+          spawnProjectile(f.col, isPlayer, f.dmg + (f.bonus || 0), f.color, false);
+        }
+      }
+      for (const col of Object.keys(campCols)) {
+        spawnCampRaid(+col, isPlayer, campCols[col] + (campB[col] || 0), campStars[col], campR[col]);
+      }
+      for (const col of Object.keys(tankCols)) {
+        spawnTankDrive(+col, isPlayer, tankCols[col] + (tankB[col] || 0), tankStars[col], tankR[col]);
+      }
+      for (const col of Object.keys(planeCols)) {
+        spawnPlaneStrike(+col, isPlayer, planeCols[col] + (planeB[col] || 0), planeStars[col], planeR[col]);
+      }
+    }
+
+    function spawnProjectile(col, fromPlayer, dmg, color, isMG) {
+      const size = isMG ? 0.08 : 0.18;
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(size, 10, 10),
+        new THREE.MeshStandardMaterial({
+          color: isMG ? 0xffee58 : COLOR_HEX[color],
+          emissive: isMG ? 0xffee58 : COLOR_HEX[color],
+          emissiveIntensity: 0.85,
+          transparent: true
+        })
+      );
+      const start = cellWorldPos(fromPlayer ? "player" : "opponent", col, 0);
+      const endSide = fromPlayer ? "opponent" : "player";
+      const end = cellWorldPos(endSide, col, ROWS - 1);
+      const xJitter = isMG ? (Math.random() - 0.5) * 0.35 : 0;
+      mesh.position.set(start.x + xJitter, isMG ? 0.45 : 0.6, start.z);
+      scene.add(mesh);
+      projectiles.push({
+        mesh, fromPlayer, col, dmg, color,
+        progress: isMG ? -Math.random() * 0.15 : 0, // stagger MG
+        remaining: dmg,
+        blocked: false,
+        deadAge: 0,
+        hitRows: new Set(),
+        hits: [],
+        startZ: start.z,
+        endZ: end.z,
+        x: start.x + xJitter,
+        isMG: !!isMG
+      });
+    }
+
+    // Camp raid: 3 men (+2 per star) run the column shooting until ATK is spent
+    function spawnCampRaid(col, fromPlayer, totalDmg, stars, startR) {
+      const n = 3 + 2 * (stars || 0);
+      const startSide = fromPlayer ? "player" : "opponent";
+      const endSide = fromPlayer ? "opponent" : "player";
+      const start = cellWorldPos(startSide, col, Math.max(0, startR || 0));
+      const end = cellWorldPos(endSide, col, ROWS - 1);
+      let left = totalDmg;
+      const per = Math.max(1, Math.floor(totalDmg / n));
+      const raidId = Date.now() + Math.random();
+      for (let i = 0; i < n; i++) {
+        const d = i === n - 1 ? left : Math.min(per, left);
+        left -= d;
+        if (d <= 0) break;
+        const mesh = createUnitMesh("green", false, 0, false);
+        mesh.scale.setScalar(0.72);
+        const xOff = (i - (n - 1) / 2) * 0.2;
+        mesh.position.set(start.x + xOff, 0.12, start.z);
+        mesh.rotation.y = fromPlayer ? 0 : Math.PI;
+        const flash = new THREE.Mesh(
+          new THREE.SphereGeometry(0.07, 6, 6),
+          new THREE.MeshBasicMaterial({ color: 0xfff176, transparent: true, opacity: 0 })
+        );
+        flash.position.set(0.14, 0.52, 0.42);
+        mesh.add(flash);
+        mesh.userData.flash = flash;
+        scene.add(mesh);
+        projectiles.push({
+          mesh, fromPlayer, col, dmg: d, color: "green",
+          progress: -i * 0.05,
+          remaining: d,
+          blocked: false,
+          deadAge: 0,
+          hitRows: new Set(),
+          hits: [],
+          startZ: start.z,
+          endZ: end.z,
+          x: start.x + xOff,
+          isMG: false,
+          isRaid: true,
+          raidId,
+          shootCd: 0.04 * i
+        });
+      }
+    }
+
+    // Tank outpost: 3 tanks (+2 per star) roll down the column firing until ATK is spent
+    function spawnTankDrive(col, fromPlayer, totalDmg, stars, startR) {
+      const n = 3 + 2 * (stars || 0);
+      const startSide = fromPlayer ? "player" : "opponent";
+      const endSide = fromPlayer ? "opponent" : "player";
+      const start = cellWorldPos(startSide, col, Math.max(0, startR || 0));
+      const end = cellWorldPos(endSide, col, ROWS - 1);
+      let left = totalDmg;
+      const per = Math.max(1, Math.floor(totalDmg / n));
+      const raidId = Date.now() + Math.random();
+      for (let i = 0; i < n; i++) {
+        const d = i === n - 1 ? left : Math.min(per, left);
+        left -= d;
+        if (d <= 0) break;
+        const mesh = buildTankModel(0.7, 0.56);
+        mesh.scale.setScalar(0.72);
+        const xOff = (i - (n - 1) / 2) * 0.22;
+        mesh.position.set(start.x + xOff, 0.02, start.z);
+        mesh.rotation.y = fromPlayer ? 0 : Math.PI;
+        scene.add(mesh);
+        projectiles.push({
+          mesh, fromPlayer, col, dmg: d, color: "blue",
+          progress: -i * 0.06,
+          remaining: d,
+          blocked: false,
+          deadAge: 0,
+          hitRows: new Set(),
+          hits: [],
+          startZ: start.z,
+          endZ: end.z,
+          x: start.x + xOff,
+          isMG: false,
+          isRaid: false,
+          isTankDrive: true,
+          raidId,
+          shootCd: 0.08 * i,
+          recoil: 0
+        });
+      }
+    }
+
+    // Airport strike: 3 planes (+2 per star) take off and bomb the column until ATK is spent
+    function spawnPlaneStrike(col, fromPlayer, totalDmg, stars, startR) {
+      const n = 3 + 2 * (stars || 0);
+      const startSide = fromPlayer ? "player" : "opponent";
+      const endSide = fromPlayer ? "opponent" : "player";
+      const start = cellWorldPos(startSide, col, Math.max(0, startR || 0));
+      const end = cellWorldPos(endSide, col, ROWS - 1);
+      let left = totalDmg;
+      const per = Math.max(1, Math.floor(totalDmg / n));
+      const raidId = Date.now() + Math.random();
+      for (let i = 0; i < n; i++) {
+        const d = i === n - 1 ? left : Math.min(per, left);
+        left -= d;
+        if (d <= 0) break;
+        const mesh = buildPlaneModel();
+        mesh.scale.setScalar(0.78);
+        const xOff = (i - (n - 1) / 2) * 0.2;
+        mesh.position.set(start.x + xOff, 0.22, start.z);
+        mesh.rotation.y = fromPlayer ? 0 : Math.PI;
+        scene.add(mesh);
+        projectiles.push({
+          mesh, fromPlayer, col, dmg: d, color: "red",
+          progress: -i * 0.07,
+          remaining: d,
+          blocked: false,
+          deadAge: 0,
+          hitRows: new Set(),
+          hits: [],
+          startZ: start.z,
+          endZ: end.z,
+          x: start.x + xOff,
+          isMG: false,
+          isRaid: false,
+          isTankDrive: false,
+          isPlaneStrike: true,
+          raidId,
+          shootCd: 0.12 * i
+        });
+      }
+    }
+
+    function spawnBombVisual(p) {
+      const bomb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.055, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0x212121, metalness: 0.45, roughness: 0.4 })
+      );
+      bomb.position.set(p.mesh.position.x, p.mesh.position.y - 0.08, p.mesh.position.z);
+      scene.add(bomb);
+      planeBombs.push({
+        mesh: bomb,
+        x: bomb.position.x,
+        z: bomb.position.z,
+        y: bomb.position.y,
+        ground: 0.18,
+        age: 0
+      });
+    }
+
+    function clearShots() {
+      for (const p of projectiles) scene.remove(p.mesh);
+      projectiles = [];
+      for (const b of planeBombs) scene.remove(b.mesh);
+      planeBombs = [];
+      shotNeedPack = false;
+      clearDmgPopups();
+    }
+
+    function unitLabel(u) {
+      if (!u) return "empty";
+      if (u.isWall) return (u.wallLevel || 1) >= 2 ? "double wall" : "wall";
+      if (u.isCamp) return "camp";
+      if (u.isTank) return "tank outpost";
+      if (u.isPlane) return "airport";
+      if (u.color === "green") return "army man";
+      if (u.color === "blue") return "tank";
+      if (u.color === "red") return "plane";
+      return u.color;
+    }
+
+    function spawnDamagePopup(side, c, r, amount, isHp) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 128; canvas.height = 64;
+      const ctx = canvas.getContext("2d");
+      ctx.font = "bold 36px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const text = (isHp ? "HP " : "") + "−" + amount;
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 6;
+      ctx.strokeText(text, 64, 34);
+      ctx.fillStyle = isHp ? "#ff8a80" : "#ffe082";
+      ctx.fillText(text, 64, 34);
+      const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: new THREE.CanvasTexture(canvas),
+        transparent: true, depthTest: false
+      }));
+      spr.scale.set(1.15, 0.58, 1);
+      const pos = cellWorldPos(side, c, Math.max(0, Math.min(ROWS - 1, r)));
+      spr.position.set(pos.x, 1.35, pos.z);
+      if (isHp) {
+        const back = cellWorldPos(side, c, ROWS - 1);
+        const extra = side === "opponent" ? 0.9 : -0.9;
+        spr.position.set(back.x, 1.6, back.z + extra);
+      }
+      scene.add(spr);
+      dmgPopups.push({ mesh: spr, age: 0, life: 1.15 });
+    }
+
+    function clearDmgPopups() {
+      for (const d of dmgPopups) scene.remove(d.mesh);
+      dmgPopups = [];
+    }
+
+    function rowUnderZ(side, z) {
+      for (let r = 0; r < ROWS; r++) {
+        if (Math.abs(z - cellWorldPos(side, 0, r).z) <= CELL * 0.52) return r;
+      }
+      return -1;
+    }
+    function columnHasUnit(board, col) {
+      for (let r = 0; r < ROWS; r++) if (board[r][col]) return true;
+      return false;
+    }
+    function hurtCell(p, r) {
+      if (p.remaining <= 0) return;
+      const target = p.fromPlayer ? opponentBoard : playerBoard;
+      const side = p.fromPlayer ? "opponent" : "player";
+      const unit = target[r][p.col];
+      if (!unit) return;
+      const take = Math.min(unit.hp, p.remaining);
+      if (take <= 0) return;
+      unit.hp -= take;
+      p.remaining -= take;
+      p.hits.push({ name: unitLabel(unit), take, killed: unit.hp <= 0, left: unit.hp });
+      spawnDamagePopup(side, p.col, r, take, false);
+      if (unit.hp <= 0) {
+        target[r][p.col] = null;
+        if (p.fromPlayer) opponentReserve++;
+        else playerReserve++;
+        updateReserve();
+        shotNeedPack = true;
+      } else {
+        p.blocked = true;
+        p.remaining = 0;
+      }
+      if (p.remaining <= 0) p.blocked = true;
+      rebuildSide(side);
+    }
+    function applyShotHits(p) {
+      if (p.blocked || p.remaining <= 0) return;
+      const side = p.fromPlayer ? "opponent" : "player";
+      const r = rowUnderZ(side, p.mesh.position.z);
+      if (r < 0 || p.hitRows.has(r)) return;
+      p.hitRows.add(r);
+      hurtCell(p, r);
+    }
+    function dumpShotRemainder(p) {
+      if (p.remaining <= 0) return;
+      const target = p.fromPlayer ? opponentBoard : playerBoard;
+      for (let r = 0; r < ROWS && p.remaining > 0; r++) {
+        if (!target[r][p.col]) continue;
+        hurtCell(p, r);
+      }
+    }
+    function packAfterShots() {
+      if (projectiles.length) return;
+      if (!shotNeedPack) {
+        rebuildSide("player");
+        if (!testMode) rebuildSide("opponent");
+        return;
+      }
+      applyGravity(playerBoard);
+      if (!testMode) applyGravity(opponentBoard);
+      shotNeedPack = false;
+      rebuildSide("player");
+      if (!testMode) rebuildSide("opponent");
+    }
+    function finishProjectile(p) {
+      p.done = true;
+      dumpShotRemainder(p);
+      const moreSquad = p.raidId && projectiles.some(x => !x.done && x.raidId === p.raidId);
+      if (moreSquad) {
+        scene.remove(p.mesh);
+        return;
+      }
+      const target = p.fromPlayer ? opponentBoard : playerBoard;
+      const side = p.fromPlayer ? "opponent" : "player";
+      const atk = p.dmg || 0;
+      const hitDesc = (p.hits || []).map(h =>
+        h.name + " −" + h.take + (h.killed ? " (down)" : " (" + h.left + " HP left)")
+      ).join(", ");
+      const stillInCol = columnHasUnit(target, p.col);
+      if (p.remaining > 0 && !stillInCol) {
+        spawnDamagePopup(side, p.col, ROWS - 1, p.remaining, true);
+        if (testMode) {
+          setStatus("TEST fire — ATK " + atk + (hitDesc ? ": " + hitDesc + ". " : ". ") + p.remaining + " would hit HP. No winner.");
+        } else if (singleMode && p.fromPlayer) {
+          hitSingleTarget(p.col);
+        } else {
+          if (p.fromPlayer) opponentHP -= p.remaining;
+          else playerHP -= p.remaining;
+          updateHP();
+          setStatus("Shot " + atk + " ATK" + (hitDesc ? " — " + hitDesc : "") + ". Column cleared, " + p.remaining + " through to HP.");
+          checkWin();
+        }
+      } else {
+        const msg = stillInCol
+          ? ("Shot " + atk + " ATK — " + (hitDesc || "hit") + ". Stopped; plane/units still in column.")
+          : (hitDesc ? ("Shot " + atk + " ATK — " + hitDesc + ".") : ("Shot " + atk + " ATK."));
+        setStatus(testMode ? ("TEST fire — " + msg + " No winner.") : msg);
+      }
+      scene.remove(p.mesh);
+    }
+
+    function countLocks(board) {
+      const n = { walls: 0, camps: 0, tanks: 0, planes: 0, armed: 0 };
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = board[r][c];
+          if (!cell || !cell.locked) continue;
+          if (cell.isWall) n.walls++;
+          else if (cell.isCamp) n.camps++;
+          else if (cell.isTank) n.tanks++;
+          else if (cell.isPlane) n.planes++;
+          else n.armed++;
+        }
+      }
+      return n;
+    }
+    function describeLockDelta(before, after) {
+      const parts = [];
+      const dw = after.walls - before.walls;
+      const dc = after.camps - before.camps;
+      const dt = after.tanks - before.tanks;
+      const dp = after.planes - before.planes;
+      if (dc > 0) parts.push("camp +" + dc);
+      if (dt > 0) parts.push("tank outpost +" + dt);
+      if (dp > 0) parts.push("plane +" + dp);
+      if (dw > 0) parts.push("wall +" + dw);
+      if (dc < 0) parts.push("camp " + dc);
+      if (dt < 0) parts.push("tank " + dt);
+      if (dp < 0) parts.push("plane " + dp);
+      if (dw < 0) parts.push("wall " + dw);
+      return parts.length ? parts.join(" · ") : "lock";
+    }
+    function describeLocks(board) {
+      return describeLockDelta({ walls: 0, camps: 0, tanks: 0, planes: 0, armed: 0 }, countLocks(board));
+    }
+
+    function cloneCell(cell) {
+      return cell ? Object.assign({}, cell) : null;
+    }
+    function cloneBoard(board) {
+      return board.map(row => row.map(cloneCell));
+    }
+    function pushTestUndo() {
+      testUndo.push({
+        playerBoard: cloneBoard(playerBoard),
+        opponentBoard: cloneBoard(opponentBoard),
+        playerReserve,
+        opponentReserve,
+        playerHP,
+        opponentHP,
+        currentPlayer,
+        movesLeft,
+        gameOver
+      });
+      if (testUndo.length > 30) testUndo.shift();
+    }
+    function undoTestMove() {
+      if (menuMode) return;
+      if (!testUndo.length) {
+        setStatus("Nothing to undo.");
+        return;
+      }
+      const snap = testUndo.pop();
+      undoEpoch++;
+      selected = null;
+      pendingDelete = null;
+      clearSelectRing();
+      inputLocked = false;
+      gameOver = !!snap.gameOver;
+      currentPlayer = snap.currentPlayer;
+      movesLeft = snap.movesLeft;
+      clearShots();
+      playerBoard = snap.playerBoard;
+      opponentBoard = snap.opponentBoard;
+      playerReserve = snap.playerReserve;
+      opponentReserve = snap.opponentReserve;
+      playerHP = snap.playerHP;
+      opponentHP = snap.opponentHP;
+      rebuildSide("player");
+      if (!testMode) rebuildSide("opponent");
+      updateHP();
+      updateReserve();
+      updateTurnUI();
+      setStatus("Undid last move. " + testUndo.length + " undo(s) left.");
+    }
+
+    function enterTestMode() {
+      if (singleMode) {
+        clearSingleField();
+        applySingleTheme(false);
+        singleMode = false;
+        document.body.classList.remove("single-mode");
+      }
+      testMode = true;
+      document.body.classList.add("test-mode");
+      if (opponentGroup) opponentGroup.visible = false;
+      if (castleGroup) castleGroup.visible = false;
+      selected = null;
+      pendingDelete = null;
+      clearSelectRing();
+      gameOver = false;
+      inputLocked = false;
+      currentPlayer = "player";
+      movesLeft = 999;
+      playerHP = 100;
+      playerReserve = 12;
+      clearShots();
+      clearBoardMeshes("player");
+      clearBoardMeshes("opponent");
+      playerBoard = makeEmpty();
+      opponentBoard = makeEmpty();
+      fillBoard(playerBoard);
+      rebuildSide("player");
+      testUndo = [];
+      updateHP();
+      updateReserve();
+      // Look more at the single board
+      orbit.theta = Math.PI;
+      orbit.phi = 0.95;
+      orbit.radius = 12;
+      placeCamera();
+      setStatus("TEST board — unlimited moves, no opponent. Double-tap a locked unit to fire now. Reset to refill.");
+    }
+
+    function resetTestBoard() {
+      if (!testMode) return;
+      selected = null;
+      pendingDelete = null;
+      clearSelectRing();
+      inputLocked = false;
+      clearShots();
+      clearBoardMeshes("player");
+      playerBoard = makeEmpty();
+      fillBoard(playerBoard);
+      rebuildSide("player");
+      testUndo = [];
+      setStatus("TEST board reset. Double-tap a locked unit to fire now.");
+    }
+
+    function startTurn(who) {
+      if (testMode) return;
+      if (gameOver) return;
+      if (singleMode && who !== "player") who = "player";
+      currentPlayer = who;
+      movesLeft = MOVES_PER_TURN;
+      selected = null;
+      clearSelectRing();
+      const board = who === "player" ? playerBoard : opponentBoard;
+      processFiring(board, who === "player");
+      rebuildSide("player");
+      if (!singleMode) rebuildSide("opponent");
+      updateTurnUI();
+      if (who === "opponent") {
+        inputLocked = true;
+        const ep = undoEpoch;
+        setTimeout(() => { if (ep === undoEpoch) runAITurn(); }, 500);
+      } else {
+        inputLocked = false;
+      }
+    }
+
+    function endPlayerTurn() {
+      if (testMode || gameOver) return;
+      if (singleMode) {
+        endSinglePlayerTurn();
+        return;
+      }
+      startTurn("opponent");
+    }
+
+    function runAITurn() {
+      if (gameOver || currentPlayer !== "opponent") return;
+      const board = opponentBoard;
+
+      function tryMove() {
+        if (movesLeft <= 0 || gameOver) {
+          startTurn("player");
+          return;
+        }
+        // Collect movable columns and targets
+        const sources = [];
+        for (let c = 0; c < COLS; c++) {
+          const r = getBackRow(board, c);
+          if (r >= 0 && isMovable(board, r, c)) sources.push({ c, r });
+        }
+        if (sources.length === 0) {
+          movesLeft = 0;
+          startTurn("player");
+          return;
+        }
+        // Random move
+        const src = sources[Math.floor(Math.random() * sources.length)];
+        const targets = [];
+        for (let c = 0; c < COLS; c++) {
+          if (c !== src.c && columnCount(board, c) < ROWS) targets.push(c);
+        }
+        if (targets.length === 0) {
+          movesLeft = 0;
+          startTurn("player");
+          return;
+        }
+        const tc = targets[Math.floor(Math.random() * targets.length)];
+        const gem = board[src.r][src.c];
+        board[src.r][src.c] = null;
+        applyGravity(board);
+        for (let rr = 0; rr < ROWS; rr++) {
+          if (!board[rr][tc]) { board[rr][tc] = gem; break; }
+        }
+        applyGravity(board);
+        checkAndLockMatches(board);
+        movesLeft--;
+        rebuildSide("opponent");
+        setStatus(`AI moves left: ${movesLeft}`);
+        const ep = undoEpoch;
+        setTimeout(() => { if (ep === undoEpoch) tryMove(); }, 450);
+      }
+      tryMove();
+    }
+
+    function pickCell(clientX, clientY) {
+      pointer.x = (clientX / innerWidth) * 2 - 1;
+      pointer.y = -(clientY / innerHeight) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+
+      const targets = [];
+      ["player", "opponent"].forEach(side => {
+        Object.values(meshMap[side]).forEach(entry => {
+          if (entry.tile) targets.push(entry.tile);
+          if (entry.unit) targets.push(entry.unit);
+        });
+      });
+
+      const hits = raycaster.intersectObjects(targets, true);
+      for (const hit of hits) {
+        let obj = hit.object;
+        while (obj && (obj.userData.side === undefined)) obj = obj.parent;
+        if (obj && obj.userData.side !== undefined) {
+          let c = obj.userData.c;
+          const r = obj.userData.r;
+          const side = obj.userData.side;
+          // Connected wall is one mesh — pick the COLUMN under the click, not the left end
+          if (obj.userData.isWallMesh) {
+            const originX = -((COLS - 1) * CELL) / 2;
+            c = Math.round((hit.point.x - originX) / CELL);
+            const start = obj.userData.wallStart ?? obj.userData.c;
+            const len = obj.userData.wallLen ?? 1;
+            c = Math.max(start, Math.min(start + len - 1, c));
+          }
+          return { side, c, r };
+        }
+      }
+      return null;
+    }
+
+    function onPointerDown(e) {
+      prevX = e.clientX;
+      prevY = e.clientY;
+      // Right button = camera
+      if (e.button === 2) {
+        orbitHeld = true;
+        orbitDragging = false;
+        e.preventDefault();
+        return;
+      }
+    }
+    function onPointerMove(e) {
+      if (!orbitHeld) return;
+      const dx = e.clientX - prevX;
+      const dy = e.clientY - prevY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) orbitDragging = true;
+      orbit.theta -= dx * 0.008;
+      orbit.phi = Math.max(0.35, Math.min(1.35, orbit.phi + dy * 0.008));
+      prevX = e.clientX;
+      prevY = e.clientY;
+      placeCamera();
+    }
+    function onPointerUp(e) {
+      if (e.button === 2) {
+        orbitHeld = false;
+        orbitDragging = false;
+        return;
+      }
+      if (orbitDragging) {
+        orbitDragging = false;
+        return;
+      }
+      // Only primary button / touch
+      if (e.button !== undefined && e.button !== 0) return;
+      if (gameOver || inputLocked || currentPlayer !== "player") return;
+
+      const pick = pickCell(e.clientX, e.clientY);
+      if (!pick) {
+        setStatus(`Your turn — ${movesLeft} moves left. Tap a unit on YOUR board.`);
+        return;
+      }
+
+      const { side, c, r } = pick;
+      if (side !== "player") {
+        setStatus(singleMode ? "Shoot the bullseyes by firing your locked units." : "That's the opponent board (castle side).");
+        return;
+      }
+
+      const board = playerBoard;
+      const now = Date.now();
+      if (testMode) {
+        if (lastTap.c === c && lastTap.r === r && now - lastTap.t < 420) {
+          lastTap = { t: 0, c: -1, r: -1 };
+          selected = null;
+          pendingDelete = null;
+          clearSelectRing();
+          fireNowAt(board, r, c);
+          return;
+        }
+        lastTap = { t: now, c, r };
+      } else {
+        lastTap = { t: 0, c: -1, r: -1 };
+      }
+
+      if (!selected) {
+        if (!board[r][c]) {
+          pendingDelete = null;
+          setStatus("Empty cell — select the BACK unit of a column.");
+          return;
+        }
+        // Locked camps/tanks/planes: cannot move, delete, or click-fire
+        if (board[r][c].locked && !board[r][c].isWall) {
+          pendingDelete = null;
+          const turns = board[r][c].fireTimer || 0;
+          setStatus(turns > 0
+            ? `Locked — fires in ${turns} turn${turns === 1 ? "" : "s"}. Click does not fire.`
+            : "Locked — waiting to fire at start of turn. Click does not fire.");
+          return;
+        }
+        // Walls, or a unit that isn't the back of the column → delete
+        if (board[r][c].isWall || !isMovable(board, r, c)) {
+          if (pendingDelete && pendingDelete.c === c && pendingDelete.r === r) {
+            // Confirm delete
+            pushTestUndo();
+            board[r][c] = null;
+            playerReserve++;
+            applyGravity(board);
+            const matched = checkAndLockMatches(board);
+            pendingDelete = null;
+            clearSelectRing();
+            if (!testMode) {
+              movesLeft--;
+              if (matched) movesLeft++;
+            }
+            updateReserve();
+            rebuildSide("player");
+            finishAction(matched);
+            return;
+          }
+          pendingDelete = { c, r };
+          showSelectRing(side, c, r);
+          setStatus(board[r][c].isWall
+            ? "Tap again to DELETE this wall (goes to reserve)."
+            : "Tap again to DELETE this unit (costs 1 move, goes to reserve).");
+          return;
+        }
+        pendingDelete = null;
+        selected = { side, c, r };
+        showSelectRing(side, c, r);
+        setStatus(`Holding ${board[r][c].color}. Tap another column to drop it.`);
+        return;
+      }
+
+      // Cancel if same cell
+      if (selected.c === c && selected.r === r) {
+        selected = null;
+        pendingDelete = null;
+        clearSelectRing();
+        updateTurnUI();
+        return;
+      }
+
+      if (selected.c === c) {
+        setStatus("Pick a different column.");
+        return;
+      }
+
+      if (columnCount(board, c) >= ROWS) {
+        setStatus("That column is full.");
+        return;
+      }
+
+      // Move
+      pushTestUndo();
+      const gem = board[selected.r][selected.c];
+      board[selected.r][selected.c] = null;
+      applyGravity(board);
+      for (let rr = 0; rr < ROWS; rr++) {
+        if (!board[rr][c]) {
+          board[rr][c] = gem;
+          break;
+        }
+      }
+      applyGravity(board);
+      const matched = checkAndLockMatches(board);
+      selected = null;
+      clearSelectRing();
+      if (!testMode) movesLeft--;
+      rebuildSide("player");
+      finishAction(matched);
+    }
+
+    function finishAction(matched) {
+      if (testMode) {
+        if (matched) {
+          inputLocked = true;
+          setStatus("MATCH: " + (lastLockDesc || "lock") + "  — paused so you can look.");
+          setTimeout(() => {
+            inputLocked = false;
+            setStatus("TEST — keep moving. Reset Board to refill.");
+          }, 1400);
+        } else {
+          setStatus("TEST — no match. Unlimited moves.");
+        }
+        return;
+      }
+      if (matched) {
+        setStatus(`Locked! ${lastLockDesc || describeLocks(playerBoard)}. ${movesLeft} moves left.`);
+      } else {
+        updateTurnUI();
+      }
+      if (movesLeft <= 0) {
+        const ep = undoEpoch;
+        setTimeout(() => { if (ep === undoEpoch) endPlayerTurn(); }, 400);
+      }
+    }
+
+    renderer.domElement.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    renderer.domElement.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
+    renderer.domElement.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      orbit.radius = Math.max(8, Math.min(28, orbit.radius + e.deltaY * 0.012));
+      placeCamera();
+    }, { passive: false });
+    // Two-finger pinch zoom on touch
+    renderer.domElement.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        pinchStart = Math.hypot(dx, dy);
+        orbitHeld = true;
+      }
+    }, { passive: true });
+    renderer.domElement.addEventListener("touchmove", (e) => {
+      if (e.touches.length === 2 && pinchStart) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        orbit.radius = Math.max(8, Math.min(28, orbit.radius + (pinchStart - dist) * 0.03));
+        pinchStart = dist;
+        placeCamera();
+      }
+    }, { passive: true });
+    renderer.domElement.addEventListener("touchend", () => {
+      if (pinchStart) { pinchStart = 0; orbitHeld = false; }
+    });
+
+    window.addEventListener("resize", () => {
+      camera.aspect = innerWidth / innerHeight;
+      renderer.setSize(innerWidth, innerHeight);
+      placeCamera();
+    });
+
+    // Ground plane under everything
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(40, 40),
+      new THREE.MeshStandardMaterial({ color: 0x0a0e14, roughness: 0.95 })
+    );
+    window.__fieldGround = ground;
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.02;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    function placeLabels() { /* board labels removed */ }
+
+    // Low-poly castle behind the opponent board
+    (function buildCastle() {
+      const castle = new THREE.Group();
+      castleGroup = castle;
+      const matStone = new THREE.MeshStandardMaterial({ color: 0x6d6a63, roughness: 0.9 });
+      const matDark = new THREE.MeshStandardMaterial({ color: 0x4a4740, roughness: 0.85 });
+      const matRoof = new THREE.MeshStandardMaterial({ color: 0x5d2e2e, roughness: 0.7 });
+      const matDoor = new THREE.MeshStandardMaterial({ color: 0x3e2723, roughness: 0.8 });
+      const matFlag = new THREE.MeshStandardMaterial({ color: 0xc62828, roughness: 0.5 });
+
+      const back = cellWorldPos("opponent", 0, ROWS - 1);
+      const zWall = back.z + 1.2;
+      const width = COLS * CELL + 1.4;
+
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(width, 1.65, 0.5), matStone);
+      wall.position.set(0, 0.82, zWall);
+      wall.castShadow = true;
+      wall.receiveShadow = true;
+      castle.add(wall);
+
+      const merlonCount = COLS + 2;
+      for (let i = 0; i < merlonCount; i++) {
+        const x = -width / 2 + 0.3 + i * (width / Math.max(1, merlonCount - 1));
+        const merlon = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.32, 0.55), matDark);
+        merlon.position.set(x, 1.75, zWall);
+        castle.add(merlon);
+      }
+
+      function addTower(x) {
+        const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.62, 2.5, 10), matStone);
+        tower.position.set(x, 1.25, zWall + 0.2);
+        tower.castShadow = true;
+        castle.add(tower);
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(0.72, 0.72, 8), matRoof);
+        roof.position.set(x, 2.8, zWall + 0.2);
+        castle.add(roof);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.55, 6), matDark);
+        pole.position.set(x, 3.25, zWall + 0.2);
+        castle.add(pole);
+        const flag = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.16, 0.03), matFlag);
+        flag.position.set(x + 0.14, 3.38, zWall + 0.2);
+        castle.add(flag);
+      }
+      addTower(-width / 2 + 0.1);
+      addTower(width / 2 - 0.1);
+
+      const keep = new THREE.Mesh(new THREE.BoxGeometry(2.3, 2.5, 1.5), matDark);
+      keep.position.set(0, 1.25, zWall + 1.15);
+      keep.castShadow = true;
+      castle.add(keep);
+      const keepRoof = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.18, 1.65), matRoof);
+      keepRoof.position.set(0, 2.55, zWall + 1.15);
+      castle.add(keepRoof);
+      for (const x of [-0.9, 0, 0.9]) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, 0.28), matStone);
+        m.position.set(x, 2.78, zWall + 0.5);
+        castle.add(m);
+      }
+
+      const gate = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.15, 0.22), matDoor);
+      gate.position.set(0, 0.58, zWall - 0.24);
+      castle.add(gate);
+      const arch = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.2, 0.52), matDark);
+      arch.position.set(0, 1.2, zWall - 0.04);
+      castle.add(arch);
+
+      scene.add(castle);
+    })();
+
+    function clearBoardMeshes(side) {
+      const group = side === "player" ? playerGroup : opponentGroup;
+      while (group.children.length) group.remove(group.children[0]);
+      meshMap[side] = {};
+      campMeshes[side] = [];
+      tankMeshes[side] = [];
+      planeMeshes[side] = [];
+    }
+
+    // Backup slot: empty column -> front line (r=0). Occupied column ->
+    // first empty cell behind the existing stack. Never pack or pull others.
+    function nextBackupSlot(board, c) {
+      let last = -1;
+      let n = 0;
+      for (let r = 0; r < ROWS; r++) {
+        if (board[r][c]) { n++; last = r; }
+      }
+      if (n >= ROWS) return -1;
+      if (n === 0) return 0;
+      if (last + 1 < ROWS) return last + 1;
+      return -1;
+    }
+
+    function callBackup() {
+      if (gameOver || inputLocked || currentPlayer !== "player") return;
+      if (playerReserve <= 0) {
+        setStatus("No gems in reserve!");
+        return;
+      }
+      const board = playerBoard;
+      const room = MAX_ON_BOARD - boardUnitCount(board);
+      if (room <= 0) {
+        setStatus("Board full (max " + MAX_ON_BOARD + ").");
+        return;
+      }
+      pushTestUndo();
+      const toPlace = Math.min(playerReserve, room);
+      let placed = 0;
+      const cols = [];
+      for (let c = 0; c < COLS; c++) cols.push(c);
+      for (let i = cols.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cols[i], cols[j]] = [cols[j], cols[i]];
+      }
+      let guard = 0;
+      while (placed < toPlace && guard++ < 400) {
+        let did = false;
+        for (const c of cols) {
+          if (placed >= toPlace) break;
+          const r = nextBackupSlot(board, c);
+          if (r < 0) continue;
+          let color, tries = 0;
+          do {
+            color = COLORS[Math.floor(Math.random() * COLORS.length)];
+            tries++;
+          } while (wouldCreateMatch(board, r, c, color) && tries < 40);
+          board[r][c] = makeUnitData(color);
+          playerReserve--;
+          placed++;
+          did = true;
+        }
+        if (!did) break;
+      }
+      scrubFreeMatches(board);
+      rebuildSide("player");
+      updateReserve();
+      setStatus("Backup spawned +" + placed + " on the front line (nothing else moved). b32");
+    }
+
+    function spawnMenuExplosion(x, y, z, scale) {
+      if (!menuGroup) return;
+      scale = scale || 1;
+      const group = new THREE.Group();
+      group.position.set(x, y, z);
+      const flash = new THREE.Mesh(
+        new THREE.SphereGeometry(0.22 * scale, 10, 8),
+        new THREE.MeshBasicMaterial({ color: 0xfff3c4, transparent: true, opacity: 0.95 })
+      );
+      group.add(flash);
+      const fire = new THREE.Mesh(
+        new THREE.SphereGeometry(0.48 * scale, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xff6d00, transparent: true, opacity: 0.75 })
+      );
+      group.add(fire);
+      const smoke = new THREE.Mesh(
+        new THREE.SphereGeometry(0.55 * scale, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0x4a453c, transparent: true, opacity: 0.35 })
+      );
+      smoke.position.y = 0.15;
+      group.add(smoke);
+      const sparks = [];
+      for (let i = 0; i < 16; i++) {
+        const s = new THREE.Mesh(
+          new THREE.BoxGeometry(0.05 * scale, 0.05 * scale, 0.12 * scale),
+          new THREE.MeshBasicMaterial({ color: i % 3 === 0 ? 0xfff59d : 0xff3d00 })
+        );
+        sparks.push({
+          mesh: s,
+          vx: (Math.random() - 0.5) * 5 * scale,
+          vy: 2.2 + Math.random() * 5 * scale,
+          vz: (Math.random() - 0.5) * 5 * scale
+        });
+        group.add(s);
+      }
+      const light = new THREE.PointLight(0xff7a2a, 3.4 * scale, 9);
+      light.position.set(0, 0.4, 0);
+      group.add(light);
+      menuGroup.add(group);
+      menuExplosions.push({ group, flash, fire, smoke, sparks, light, age: 0, life: 0.85 + Math.random() * 0.25 });
+    }
+
+    function buildMenuScene() {
+      teardownMenuScene();
+      menuMode = true;
+      menuGroup = new THREE.Group();
+      scene.add(menuGroup);
+      playerGroup.visible = false;
+      opponentGroup.visible = false;
+      if (castleGroup) castleGroup.visible = true;
+      scene.fog = new THREE.Fog(0x0b0f14, 10, 30);
+      scene.background = new THREE.Color(0x0b0f14);
+      inputLocked = true;
+
+      const dirt = new THREE.Mesh(
+        new THREE.CircleGeometry(11, 40),
+        new THREE.MeshStandardMaterial({ color: 0x1c241c, roughness: 0.95 })
+      );
+      dirt.rotation.x = -Math.PI / 2;
+      dirt.position.y = 0.01;
+      dirt.receiveShadow = true;
+      menuGroup.add(dirt);
+
+      const matAsh = new THREE.MeshStandardMaterial({ color: 0x2a2620, roughness: 1 });
+      for (let i = 0; i < 7; i++) {
+        const crater = new THREE.Mesh(new THREE.CircleGeometry(0.45 + Math.random() * 0.5, 12), matAsh);
+        crater.rotation.x = -Math.PI / 2;
+        crater.position.set((Math.random() - 0.5) * 8, 0.02, (Math.random() - 0.4) * 6);
+        menuGroup.add(crater);
+      }
+
+      const wall = createWallMesh(6, 2);
+      wall.position.set(-0.4, 0, -0.9);
+      wall.rotation.y = 0.08;
+      menuGroup.add(wall);
+
+      const camp = createCampMesh(3, 1, "player", 0);
+      camp.position.set(3.4, 0, 1.6);
+      camp.rotation.y = -0.4;
+      menuGroup.add(camp);
+      campMeshes.player.push(camp);
+
+      const bigTank = createBigTankMesh(3, 2, 1);
+      bigTank.position.set(-2.8, 0, 1.1);
+      bigTank.rotation.y = 0.55;
+      menuGroup.add(bigTank);
+      tankMeshes.player.push(bigTank);
+      menuTanks.push({ mesh: bigTank, z0: 1.1, x0: -2.8 });
+
+      for (let i = 0; i < 3; i++) {
+        const t = createUnitMesh("blue", false, 0, false);
+        t.position.set(-1.2 + i * 1.15, 0, 2.15);
+        t.rotation.y = Math.PI + 0.1 * i;
+        menuGroup.add(t);
+        tankMeshes.player.push(t);
+        menuTanks.push({ mesh: t, z0: 2.15, x0: -1.2 + i * 1.15 });
+      }
+
+      for (let i = 0; i < 7; i++) {
+        const man = createUnitMesh("green", false, 0, false);
+        const x = -3.6 + i * 0.58;
+        const z = 2.7 + (i % 2) * 0.35;
+        man.position.set(x, 0, z);
+        man.rotation.y = Math.PI + 0.15;
+        menuGroup.add(man);
+        menuMen.push(man);
+      }
+
+      const airport = createBigPlaneMesh(3, 1, 0);
+      airport.position.set(2.4, 0, -0.35);
+      airport.rotation.y = -0.35;
+      menuGroup.add(airport);
+      planeMeshes.player.push(airport);
+
+      const planeA = buildPlaneModel();
+      planeA.scale.setScalar(1.55);
+      menuGroup.add(planeA);
+      menuFlyers.push({ mesh: planeA, radius: 5.4, speed: 0.42, height: 3.1, phase: 0.4 });
+
+      const planeB = createUnitMesh("red", false, 0, false);
+      planeB.scale.setScalar(1.6);
+      menuGroup.add(planeB);
+      menuFlyers.push({ mesh: planeB, radius: 4.2, speed: -0.55, height: 2.35, phase: 2.2 });
+      planeMeshes.player.push(planeB);
+
+      const planeC = createUnitMesh("red", false, 0, false);
+      planeC.scale.setScalar(1.4);
+      menuGroup.add(planeC);
+      menuFlyers.push({ mesh: planeC, radius: 6.1, speed: 0.33, height: 3.8, phase: 4.1 });
+      planeMeshes.player.push(planeC);
+
+      spawnMenuExplosion(-0.2, 0.4, -0.2, 1.1);
+      spawnMenuExplosion(2.2, 0.35, 0.8, 0.7);
+
+      const fireFill = new THREE.PointLight(0xff6a2a, 1.35, 20);
+      fireFill.position.set(0.4, 2.6, 0.8);
+      menuGroup.add(fireFill);
+
+      orbit.theta = Math.PI + 0.42;
+      orbit.phi = 1.18;
+      orbit.radius = 13.2;
+      placeCamera();
+    }
+
+    function teardownMenuScene() {
+      if (menuGroup) {
+        scene.remove(menuGroup);
+        menuGroup = null;
+      }
+      menuExplosions = [];
+      menuFlyers = [];
+      menuTanks = [];
+      menuMen = [];
+      if (menuMode) {
+        campMeshes.player = [];
+        tankMeshes.player = [];
+        planeMeshes.player = [];
+      }
+      scene.fog = null;
+    }
+
+    function tickMenu(t, dt) {
+      orbit.theta = Math.PI + 0.38 + Math.sin(t * 0.13) * 0.22;
+      orbit.phi = 1.16 + Math.sin(t * 0.09) * 0.04;
+      placeCamera();
+
+      menuMen.forEach((m, i) => animateArmyIdle(m, t + i * 0.35));
+      menuTanks.forEach((tk, i) => {
+        tk.mesh.position.z = tk.z0 + Math.sin(t * 0.35 + i) * 0.18;
+        tk.mesh.traverse(obj => {
+          if (obj.name === "turret") obj.rotation.y = Math.sin(t * 0.6 + i) * 0.4;
+          if (obj.name === "wheel") obj.rotation.x = t * 2.4;
+        });
+      });
+      menuFlyers.forEach(f => {
+        const a = t * f.speed + f.phase;
+        f.mesh.position.set(Math.cos(a) * f.radius, f.height + Math.sin(t * 1.4 + f.phase) * 0.12, Math.sin(a) * f.radius * 0.72);
+        f.mesh.rotation.y = -a + (f.speed < 0 ? -Math.PI / 2 : Math.PI / 2);
+        f.mesh.rotation.z = Math.sin(t * 1.5 + f.phase) * 0.08;
+        f.mesh.traverse(obj => { if (obj.name === "prop") obj.rotation.z = t * 22; });
+      });
+
+      menuNextBoom -= dt;
+      if (menuNextBoom <= 0) {
+        menuNextBoom = 0.55 + Math.random() * 1.1;
+        const x = (Math.random() - 0.45) * 7;
+        const z = (Math.random() - 0.35) * 5;
+        spawnMenuExplosion(x, 0.25 + Math.random() * 0.5, z, 0.65 + Math.random() * 0.7);
+      }
+
+      const still = [];
+      for (const ex of menuExplosions) {
+        ex.age += dt;
+        const u = ex.age / ex.life;
+        if (u >= 1) {
+          menuGroup.remove(ex.group);
+          continue;
+        }
+        const grow = 1 + u * 2.4;
+        ex.flash.scale.setScalar(grow * 0.7);
+        ex.flash.material.opacity = Math.max(0, 0.95 * (1 - u * 1.6));
+        ex.fire.scale.setScalar(grow);
+        ex.fire.material.opacity = Math.max(0, 0.7 * (1 - u));
+        ex.smoke.scale.setScalar(1 + u * 3.2);
+        ex.smoke.position.y = 0.15 + u * 1.4;
+        ex.smoke.material.opacity = Math.max(0, 0.35 * (1 - u));
+        if (ex.light) ex.light.intensity = 3.2 * Math.max(0, 1 - u * 1.4);
+        for (const s of ex.sparks) {
+          s.vy -= 9 * dt;
+          s.mesh.position.x += s.vx * dt;
+          s.mesh.position.y += s.vy * dt;
+          s.mesh.position.z += s.vz * dt;
+          s.mesh.rotation.x += dt * 6;
+          s.mesh.visible = u < 0.85;
+        }
+        still.push(ex);
+      }
+      menuExplosions = still;
+    }
+
+    function makeTargetHpSprite(hp, maxHp) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 128; canvas.height = 48;
+      const ctx = canvas.getContext("2d");
+      ctx.font = "bold 28px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 6;
+      const label = hp <= 0 ? "DOWN" : (hp + " HP");
+      ctx.strokeText(label, 64, 24);
+      ctx.fillStyle = hp <= 0 ? "#9e9e9e" : hp <= 50 ? "#ffcc80" : "#fff59d";
+      ctx.fillText(label, 64, 24);
+      const tex = new THREE.CanvasTexture(canvas);
+      const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+      spr.scale.set(1.15, 0.42, 1);
+      return spr;
+    }
+
+    function makeTargetFaceTexture(kind) {
+      const size = 256;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      const cx = size / 2, cy = size / 2;
+      const rings = kind === "bull"
+        ? [
+            [1.00, "#b71c1c"],
+            [0.78, "#fafafa"],
+            [0.58, "#c62828"],
+            [0.38, "#fafafa"],
+            [0.18, "#ffe082"]
+          ]
+        : [
+            [1.00, "#b71c1c"],
+            [0.72, "#fafafa"],
+            [0.42, "#ef9a9a"]
+          ];
+      rings.forEach(([r, color]) => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * (size / 2 - 1), 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      });
+      if (kind === "bull") {
+        ctx.beginPath();
+        ctx.arc(cx, cy, size * 0.035, 0, Math.PI * 2);
+        ctx.fillStyle = "#3e2723";
+        ctx.fill();
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      if ("SRGBColorSpace" in THREE) tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      return tex;
+    }
+
+    function makeLetterTexture(letter) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext("2d");
+      ctx.font = "bold 46px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.strokeStyle = "#1b2a1c";
+      ctx.lineWidth = 8;
+      ctx.strokeText(String(letter), 32, 36);
+      ctx.fillStyle = "#ffe082";
+      ctx.fillText(String(letter), 32, 36);
+      const tex = new THREE.CanvasTexture(canvas);
+      if ("SRGBColorSpace" in THREE) tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function makeStandingFigure(isBull, label) {
+      const figure = new THREE.Group();
+      figure.rotation.y = Math.PI;
+      const matBody = new THREE.MeshStandardMaterial({
+        color: isBull ? 0x3d5c3a : 0x4a6744,
+        roughness: 0.62
+      });
+      const matDark = new THREE.MeshStandardMaterial({ color: 0x2a4328, roughness: 0.7 });
+      const matBoot = new THREE.MeshStandardMaterial({ color: 0x1b3d1f, roughness: 0.85 });
+      const matEdge = new THREE.MeshStandardMaterial({ color: 0x1b2a1c, roughness: 0.8 });
+      const matStake = new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.88 });
+
+      const stake = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.82, 8), matStake);
+      stake.position.set(0, 0.41, -0.08);
+      stake.castShadow = true;
+      figure.add(stake);
+
+      const hips = new THREE.Group();
+      hips.position.y = 0.28;
+      const legL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.28, 0.1), matBody);
+      legL.position.set(-0.09, -0.14, 0);
+      legL.castShadow = true;
+      hips.add(legL);
+      const bootL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.16), matBoot);
+      bootL.position.set(-0.09, -0.3, 0.02);
+      hips.add(bootL);
+      const legR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.28, 0.1), matBody);
+      legR.position.set(0.09, -0.14, 0);
+      hips.add(legR);
+      const bootR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.16), matBoot);
+      bootR.position.set(0.09, -0.3, 0.02);
+      hips.add(bootR);
+      figure.add(hips);
+
+      const torso = new THREE.Group();
+      torso.position.y = 0.42;
+      const torsoMesh = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.34, 0.16), matBody);
+      torsoMesh.castShadow = true;
+      torso.add(torsoMesh);
+      const belt = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.05, 0.18), matDark);
+      belt.position.y = -0.14;
+      torso.add(belt);
+
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), matBody);
+      head.position.y = 0.28;
+      head.castShadow = true;
+      torso.add(head);
+      const helmet = new THREE.Mesh(
+        new THREE.SphereGeometry(0.13, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.55),
+        matDark
+      );
+      helmet.position.y = 0.3;
+      torso.add(helmet);
+      const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.15, 0.03, 12), matDark);
+      brim.position.y = 0.24;
+      torso.add(brim);
+
+      const armL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.28, 0.08), matBody);
+      armL.position.set(-0.22, -0.02, 0);
+      torso.add(armL);
+      const armR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.28, 0.08), matBody);
+      armR.position.set(0.22, -0.02, 0);
+      torso.add(armR);
+
+      const faceR = isBull ? 0.13 : 0.11;
+      const face = new THREE.Mesh(
+        new THREE.CircleGeometry(faceR, 28),
+        new THREE.MeshStandardMaterial({
+          map: makeTargetFaceTexture(isBull ? "bull" : "ring"),
+          roughness: 0.48,
+          metalness: 0.05
+        })
+      );
+      face.position.set(0, 0.02, 0.09);
+      torso.add(face);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(faceR, 0.012, 6, 20), matEdge);
+      rim.position.copy(face.position);
+      torso.add(rim);
+
+      if (label) {
+        const badge = new THREE.Sprite(
+          new THREE.SpriteMaterial({ map: makeLetterTexture(label), transparent: true })
+        );
+        badge.scale.set(0.22, 0.22, 1);
+        badge.position.set(0, 0.52, 0);
+        torso.add(badge);
+      }
+
+      figure.add(torso);
+      return figure;
+    }
+
+    // One standing dummy per column — same posture as army men, bullseye on the
+    // bull column's chest, outer-ring paint on the neighbors.
+    function createBullseyeMesh(widthCols, label, bullIndex) {
+      const g = new THREE.Group();
+      const pivot = new THREE.Group();
+      pivot.name = "dummy";
+      g.add(pivot);
+      const n = Math.max(1, widthCols | 0);
+      const bull = bullIndex == null ? Math.floor(n / 2) : bullIndex;
+      // 1-shot stays unit size. 2-hit and 3-wide targets scale up.
+      const scale = n >= 3 ? 1.68 : n >= 2 ? 1.36 : 1;
+      for (let i = 0; i < n; i++) {
+        const fig = makeStandingFigure(i === bull, i === bull ? label : "");
+        fig.position.x = (i - (n - 1) / 2) * CELL;
+        fig.scale.setScalar(scale);
+        pivot.add(fig);
+      }
+      g.userData.idleTarget = true;
+      g.userData.dummy = pivot;
+      g.userData.faceY = 1.18 * scale;
+      g.userData.targetScale = scale;
+      return g;
+    }
+
+
+    function spLayout() {
+      // 8 columns: 3-wide, 1-wide, 2-wide, 2-col (second 3-wide clipped to fit)
+      return [
+        { name: "A", cols: [0, 1, 2], bull: 1 },
+        { name: "D", cols: [3], bull: 3 },
+        { name: "C", cols: [4, 5], bull: 4 },
+        { name: "B", cols: [6, 7], bull: 6 }
+      ];
+    }
+
+    function allTargetsDead() {
+      return spTargets.length > 0 && spTargets.every(t => t.hp <= 0);
+    }
+
+    function updateSPHud() {
+      const waveEl = document.getElementById("sp-wave");
+      const listEl = document.getElementById("sp-targets");
+      if (!waveEl || !listEl) return;
+      waveEl.textContent = waveTurnsLeft + " Turn" + (waveTurnsLeft === 1 ? "" : "s");
+      listEl.textContent = spTargets.map(t => {
+        const tag = t.hp <= 0 ? "DOWN" : (t.hp + "hp");
+        return t.name + " " + tag;
+      }).join(" · ");
+    }
+
+    function refreshTargetSprite(t) {
+      if (t.hpSpr) t.mesh.remove(t.hpSpr);
+      t.hpSpr = makeTargetHpSprite(t.hp, t.maxHp);
+      const sc = t.mesh.userData.targetScale || 1;
+      t.hpSpr.position.set(0, t.mesh.userData.faceY || 1.2, 0);
+      t.hpSpr.scale.set(1.15 * sc, 0.42 * sc, 1);
+      t.mesh.add(t.hpSpr);
+      const dummy = t.mesh.userData.dummy;
+      if (dummy) {
+        dummy.rotation.x = t.hp <= 0 ? Math.PI / 2.05 : 0;
+        dummy.rotation.z = 0;
+      }
+    }
+
+    function clearSingleField() {
+      if (targetGroup) {
+        scene.remove(targetGroup);
+        targetGroup = null;
+      }
+      if (grassGroup) {
+        scene.remove(grassGroup);
+        grassGroup = null;
+      }
+      spTargets = [];
+    }
+
+    function buildGrassField() {
+      if (grassGroup) scene.remove(grassGroup);
+      grassGroup = new THREE.Group();
+      const field = new THREE.Mesh(
+        new THREE.PlaneGeometry(22, 16),
+        new THREE.MeshStandardMaterial({ color: 0x3d7a36, roughness: 0.92 })
+      );
+      field.rotation.x = -Math.PI / 2;
+      field.position.set(0, -0.01, 3.2);
+      field.receiveShadow = true;
+      grassGroup.add(field);
+      const patchMat = new THREE.MeshStandardMaterial({ color: 0x4caf50, roughness: 0.95 });
+      const darkMat = new THREE.MeshStandardMaterial({ color: 0x2e6b2e, roughness: 0.95 });
+      for (let i = 0; i < 40; i++) {
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18 + Math.random() * 0.16, 0.04), i % 2 ? patchMat : darkMat);
+        blade.position.set((Math.random() - 0.5) * 16, 0.08, 1.2 + Math.random() * 8);
+        blade.rotation.y = Math.random() * Math.PI;
+        grassGroup.add(blade);
+      }
+      scene.add(grassGroup);
+    }
+
+    function buildSingleTargets() {
+      if (targetGroup) scene.remove(targetGroup);
+      targetGroup = new THREE.Group();
+      spTargets = [];
+      const front = cellWorldPos("opponent", 0, 0);
+      spLayout().forEach((spec, idx) => {
+        const mid = spec.cols.reduce((a, c) => a + c, 0) / spec.cols.length;
+        const pos = cellWorldPos("opponent", mid, 0);
+        const mesh = createBullseyeMesh(spec.cols.length, spec.name, spec.cols.indexOf(spec.bull));
+        mesh.position.set(pos.x, 0, front.z + 1.15);
+        targetGroup.add(mesh);
+        const t = {
+          name: spec.name,
+          cols: spec.cols.slice(),
+          bull: spec.bull,
+          hp: 100,
+          maxHp: 100,
+          mesh,
+          hpSpr: null
+        };
+        refreshTargetSprite(t);
+        spTargets.push(t);
+      });
+      scene.add(targetGroup);
+    }
+
+    function resetSingleTargets() {
+      spTargets.forEach(t => {
+        t.hp = 100;
+        t.mesh.rotation.x = 0;
+        if (t.mesh.userData.dummy) {
+          t.mesh.userData.dummy.rotation.x = 0;
+          t.mesh.userData.dummy.rotation.z = 0;
+        }
+        refreshTargetSprite(t);
+      });
+      updateSPHud();
+    }
+
+    function targetOnCol(c) {
+      return spTargets.find(t => t.hp > 0 && t.cols.indexOf(c) >= 0) || null;
+    }
+
+    function hitSingleTarget(col) {
+      const t = targetOnCol(col);
+      if (!t) {
+        setStatus("No target in that column — shot went wide.");
+        return;
+      }
+      const bull = col === t.bull;
+      const dmg = bull ? 100 : 50;
+      t.hp = Math.max(0, t.hp - dmg);
+      refreshTargetSprite(t);
+      updateSPHud();
+      const zone = bull ? "BULLSEYE" : "outer ring";
+      if (t.hp <= 0) setStatus(zone + " on " + t.name + " — target destroyed!");
+      else setStatus(zone + " on " + t.name + " −" + dmg + " (" + t.hp + " HP left).");
+      if (allTargetsDead()) {
+        gameOver = true;
+        inputLocked = true;
+        setStatus("All targets down before the 5-turn reset — you win!");
+      }
+    }
+
+    function targetsRetaliate() {
+      let dmg = 0;
+      const bits = [];
+      spTargets.forEach(t => {
+        if (t.hp <= 0) return;
+        const shot = t.hp > 50 ? 50 : 25;
+        dmg += shot;
+        bits.push(t.name + " " + shot);
+      });
+      if (dmg <= 0) return 0;
+      playerHP = Math.max(0, playerHP - dmg);
+      updateHP();
+      setStatus("Targets fire back: " + bits.join(", ") + " = " + dmg + " to you.");
+      return dmg;
+    }
+
+    function applySingleTheme(on) {
+      document.body.classList.toggle("single-mode", !!on);
+      if (ground && ground.material) {
+        ground.material.color.set(on ? 0x2e6b32 : 0x0a0e14);
+      }
+      scene.background = new THREE.Color(on ? 0x7ec8e3 : 0x0b0f14);
+      if (castleGroup) castleGroup.visible = !on;
+      if (opponentGroup) opponentGroup.visible = !on;
+    }
+
+    function teardownSingleMode() {
+      singleMode = false;
+      clearSingleField();
+      applySingleTheme(false);
+    }
+
+    function endSinglePlayerTurn() {
+      if (gameOver) return;
+      if (allTargetsDead()) {
+        gameOver = true;
+        setStatus("All targets down before the 5-turn reset — you win!");
+        return;
+      }
+      waveTurnsLeft--;
+      updateSPHud();
+      if (waveTurnsLeft <= 0) {
+        if (allTargetsDead()) {
+          gameOver = true;
+          setStatus("All targets down before the 5-turn reset — you win!");
+          return;
+        }
+        targetsRetaliate();
+        if (playerHP <= 0) {
+          gameOver = true;
+          setStatus("You were wiped by the targets.");
+          return;
+        }
+        resetSingleTargets();
+        waveTurnsLeft = WAVE_TURNS;
+        updateSPHud();
+        setStatus("Targets reset. New 5-turn window. You: " + playerHP + " HP.");
+      }
+      startTurn("player");
+    }
+
+    function newSingleGame() {
+      singleMode = true;
+      testMode = false;
+      document.body.classList.remove("test-mode");
+      document.body.classList.add("single-mode");
+      applySingleTheme(true);
+      selected = null;
+      pendingDelete = null;
+      clearSelectRing();
+      gameOver = false;
+      inputLocked = false;
+      currentPlayer = "player";
+      movesLeft = MOVES_PER_TURN;
+      playerHP = 100;
+      opponentHP = 100;
+      playerReserve = START_RESERVE;
+      opponentReserve = START_RESERVE;
+      waveTurnsLeft = WAVE_TURNS;
+      updateHP();
+      updateReserve();
+      clearShots();
+      clearBoardMeshes("player");
+      clearBoardMeshes("opponent");
+      playerBoard = makeEmpty();
+      opponentBoard = makeEmpty();
+      fillBoard(playerBoard);
+      rebuildSide("player");
+      buildGrassField();
+      buildSingleTargets();
+      updateSPHud();
+      testUndo = [];
+      undoEpoch++;
+      orbit.theta = Math.PI;
+      orbit.phi = 1.02;
+      orbit.radius = 15.5;
+      placeCamera();
+      setStatus("Map 1 — knock out all 4 standing targets before 5 turns, or they fire back.");
+    }
+
+    function enterSinglePlayer() {
+      const overlay = document.getElementById("start-screen");
+      overlay.classList.add("leave");
+      const ms = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 380;
+      setTimeout(() => {
+        teardownMenuScene();
+        menuMode = false;
+        document.body.classList.remove("menu-mode");
+        playerGroup.visible = true;
+        opponentGroup.visible = false;
+        newSingleGame();
+      }, ms);
+    }
+
+    function enterMultiplayer() {
+      const overlay = document.getElementById("start-screen");
+      overlay.classList.add("leave");
+      const ms = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 380;
+      setTimeout(() => {
+        teardownMenuScene();
+        teardownSingleMode();
+        menuMode = false;
+        document.body.classList.remove("menu-mode");
+        document.body.classList.remove("single-mode");
+        playerGroup.visible = true;
+        opponentGroup.visible = true;
+        orbit.theta = Math.PI;
+        orbit.phi = 1.05;
+        orbit.radius = 16;
+        placeCamera();
+        newGame();
+      }, ms);
+    }
+
+    function newGame() {
+      if (singleMode) {
+        newSingleGame();
+        return;
+      }
+      testMode = false;
+      document.body.classList.remove("test-mode");
+      document.body.classList.remove("single-mode");
+      teardownSingleMode();
+      if (opponentGroup) opponentGroup.visible = true;
+      if (castleGroup) castleGroup.visible = true;
+      selected = null;
+      pendingDelete = null;
+      clearSelectRing();
+      gameOver = false;
+      inputLocked = false;
+      currentPlayer = "player";
+      movesLeft = MOVES_PER_TURN;
+      playerHP = 100;
+      opponentHP = 100;
+      playerReserve = START_RESERVE;
+      opponentReserve = START_RESERVE;
+      updateHP();
+      updateReserve();
+      clearShots();
+
+      clearBoardMeshes("player");
+      clearBoardMeshes("opponent");
+      playerBoard = makeEmpty();
+      opponentBoard = makeEmpty();
+      fillBoard(playerBoard);
+      fillBoard(opponentBoard);
+      rebuildSide("player");
+      rebuildSide("opponent");
+      placeLabels();
+      updateTurnUI();
+      testUndo = [];
+      undoEpoch++;
+    }
+
+    document.getElementById("btn-new").addEventListener("click", newGame);
+    document.getElementById("btn-backup").addEventListener("click", callBackup);
+    document.getElementById("btn-test").addEventListener("click", enterTestMode);
+    document.getElementById("btn-reset").addEventListener("click", resetTestBoard);
+    document.getElementById("btn-undo").addEventListener("click", undoTestMove);
+    document.getElementById("btn-multi").addEventListener("click", enterMultiplayer);
+    document.getElementById("btn-single").addEventListener("click", enterSinglePlayer);
+
+    (function setupInfoPanel() {
+      const rows = [
+        ["Army man", FIRE_DMG.green, UNIT_MAX_HP, FIRE_TURNS.green + " turn"],
+        ["Tank", FIRE_DMG.blue, UNIT_MAX_HP, FIRE_TURNS.blue + " turns"],
+        ["Plane", FIRE_DMG.red, UNIT_MAX_HP, FIRE_TURNS.red + " turns"],
+        ["Army camp (3)", FIRE_DMG.green * 3, UNIT_MAX_HP + " ea", "1 turn · 3 men, +2/star"],
+        ["Tank outpost (3)", FIRE_DMG.blue * 3, UNIT_MAX_HP + " ea", "2 turns · 3 tanks, +2/star"],
+        ["Airport (3)", FIRE_DMG.red * 3, UNIT_MAX_HP + " ea", "3 turns · 3 planes, +2/star"],
+        ["Wall", 0, UNIT_MAX_HP, "—"],
+        ["Double wall", 0, UNIT_MAX_HP * 2, "merge once"]
+      ];
+      const body = document.getElementById("info-body");
+      body.innerHTML = rows.map(r =>
+        `<tr><td class="name">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`
+      ).join("");
+      const panel = document.getElementById("info-panel");
+      document.getElementById("btn-info").addEventListener("click", (e) => {
+        e.stopPropagation();
+        panel.classList.toggle("open");
+      });
+    })();
+
+    // Start on the title battlefield — Multiplayer launches the current game
+    buildMenuScene();
+
+    const clock = new THREE.Clock();
+
+    function animateTankOutpost(outpost, t) {
+      const tanks = outpost.userData.patrolTanks || [];
+      tanks.forEach(tk => {
+        const w = tk.userData.walk;
+        if (!w) return;
+        tk.position.x = w.x0 + Math.sin(t * w.speed + w.phase) * w.radius;
+        tk.position.z = w.z0 + Math.cos(t * w.speed * 0.55 + w.phase) * w.radius * 0.65;
+        tk.rotation.y = t * w.speed * 0.35 + w.phase;
+        tk.traverse(obj => {
+          if (obj.name === "wheel") obj.rotation.x = t * 3.4 + w.phase;
+          if (obj.name === "turret") obj.rotation.y = Math.sin(t * 0.9 + w.phase) * 0.45;
+        });
+      });
+      const mech = outpost.userData.mechanic;
+      if (mech) {
+        mech.traverse(obj => {
+          if (obj.name === "armR") obj.rotation.x = -0.7 + Math.sin(t * 3.4) * 0.75;
+          if (obj.name === "armL") obj.rotation.x = Math.sin(t * 1.5) * 0.2;
+          if (obj.name === "torso") obj.rotation.y = Math.sin(t * 1.1) * 0.12;
+        });
+      }
+      const hoist = outpost.userData.hoist;
+      if (hoist) hoist.position.y = (hoist.userData.y0 || 0.48) + Math.sin(t * 1.15) * 0.07;
+      const shopTank = outpost.userData.shopTank;
+      if (shopTank) shopTank.position.y = (shopTank.userData.y0 || 0.14) + Math.sin(t * 1.15) * 0.035;
+    }
+
+    function animateAirport(ap, t) {
+      const planes = ap.userData.taxiPlanes || [];
+      planes.forEach(pl => {
+        const w = pl.userData.taxi;
+        if (!w) return;
+        pl.traverse(obj => {
+          if (obj.name === "prop") obj.rotation.z = t * (w.parked ? 4 : 18) + (w.phase || 0);
+        });
+        if (w.parked) return;
+        const wave = Math.sin(t * w.speed + w.phase);
+        pl.position.z = w.z0 + wave * w.span;
+        pl.rotation.y = wave >= 0 ? 0 : Math.PI;
+      });
+      const sock = ap.userData.windsock;
+      if (sock) sock.rotation.z = Math.PI / 2 + Math.sin(t * 3.4) * 0.28;
+    }
+
+    function animateArmyIdle(root, t) {
+      root.traverse(obj => {
+        if (obj.name === "torso") {
+          obj.rotation.y = Math.sin(t * 1.2) * 0.04;
+          obj.position.y = 0.42 + Math.sin(t * 2.0) * 0.012; // breathe
+        }
+        if (obj.name === "armL") {
+          obj.rotation.x = Math.sin(t * 1.5) * 0.15;
+        }
+        if (obj.name === "armR") {
+          obj.rotation.x = Math.sin(t * 1.5 + 0.5) * 0.08;
+        }
+      });
+    }
+
+    // Animate
+    function tick() {
+      requestAnimationFrame(tick);
+      const t = clock.getElapsedTime();
+      const dt = Math.min(0.1, t - (tick._last || t) || 0.016);
+      tick._last = t;
+      if (menuMode) {
+        tickMenu(t, dt);
+        campMeshes.player.forEach(camp => {
+          const troops = camp.userData.troops || [];
+          troops.forEach(tr => {
+            const w = tr.userData.walk;
+            if (!w) return;
+            tr.position.x = w.x0 + Math.sin(t * w.speed + w.phase) * w.radius;
+            tr.position.z = w.z0 + Math.cos(t * w.speed * 0.7 + w.phase) * w.radius * 0.6;
+            tr.rotation.y = Math.sin(t * w.speed + w.phase) * 0.5;
+            if (tr.userData.idle) animateArmyIdle(tr, t + w.phase);
+          });
+        });
+        tankMeshes.player.forEach(tk => animateTankOutpost(tk, t));
+        planeMeshes.player.forEach(ap => animateAirport(ap, t));
+        renderer.render(scene, camera);
+        return;
+      }
+      if (selectRing) {
+        selectRing.scale.setScalar(1 + Math.sin(t * 4) * 0.08);
+      }
+      // Idle anim on green army men
+      Object.values(meshMap.player).forEach(e => {
+        if (e.unit && e.unit.userData.idle) animateArmyIdle(e.unit, t);
+      });
+      Object.values(meshMap.opponent).forEach(e => {
+        if (e.unit && e.unit.userData.idle) animateArmyIdle(e.unit, t + 1.7);
+      });
+      if (singleMode) {
+        spTargets.forEach((tgt, i) => {
+          const dummy = tgt.mesh && tgt.mesh.userData.dummy;
+          if (!dummy || tgt.hp <= 0) return;
+          dummy.rotation.z = Math.sin(t * 1.2 + i * 1.4) * 0.028;
+        });
+      }
+      // Camp troops walking around
+      ["player", "opponent"].forEach(side => {
+        campMeshes[side].forEach(camp => {
+          const troops = camp.userData.troops || [];
+          troops.forEach(tr => {
+            const w = tr.userData.walk;
+            if (!w) return;
+            tr.position.x = w.x0 + Math.sin(t * w.speed + w.phase) * w.radius;
+            tr.position.z = w.z0 + Math.cos(t * w.speed * 0.7 + w.phase) * w.radius * 0.6;
+            tr.rotation.y = Math.sin(t * w.speed + w.phase) * 0.5;
+            if (tr.userData.idle) animateArmyIdle(tr, t + w.phase);
+          });
+        });
+        tankMeshes[side].forEach(tank => animateTankOutpost(tank, t));
+        planeMeshes[side].forEach(ap => animateAirport(ap, t));
+      });
+
+      // Projectiles / camp raid — stop in place when ATK is spent
+      if (projectiles.length) {
+        const still = [];
+        for (const p of projectiles) {
+          if (p.blocked) {
+            p.deadAge = (p.deadAge || 0) + 0.016;
+            const linger = p.isRaid ? 0.5 : p.isTankDrive ? 0.55 : p.isPlaneStrike ? 0.7 : 0.32;
+            const u = Math.min(1, p.deadAge / linger);
+            if (p.isRaid || p.isTankDrive || p.isPlaneStrike) {
+              if (p.isPlaneStrike) {
+                p.mesh.position.y += 0.025;
+                p.mesh.rotation.z = u * 0.5;
+                p.mesh.rotation.x = -u * 0.2;
+              } else {
+                p.mesh.position.y = (p.isTankDrive ? 0.02 : 0.12) * (1 - u);
+                if (p.isRaid) p.mesh.rotation.x = u * 0.7;
+              }
+              p.mesh.traverse(obj => {
+                if (obj.material && obj.material.opacity !== undefined) {
+                  obj.material.transparent = true;
+                  obj.material.opacity = 1 - u;
+                }
+              });
+            } else {
+              p.mesh.material.transparent = true;
+              p.mesh.material.opacity = 1 - u;
+              p.mesh.scale.setScalar(1 + u * 1.8);
+              p.mesh.position.y = 0.55 + u * 0.15;
+            }
+            if (u >= 1) finishProjectile(p);
+            else still.push(p);
+            continue;
+          }
+          const speed = p.isPlaneStrike ? 0.0048 : p.isTankDrive ? 0.0036 : p.isRaid ? 0.0042 : 0.008;
+          p.progress = Math.min(1, p.progress + speed);
+          p.mesh.position.x = p.x;
+          if (p.isRaid || p.isTankDrive || p.isPlaneStrike) {
+            const u = Math.max(0, p.progress);
+            p.mesh.position.z = p.startZ + (p.endZ - p.startZ) * u;
+            if (p.isRaid) {
+              const bob = Math.abs(Math.sin(u * 42)) * 0.045;
+              p.mesh.position.y = 0.12 + bob;
+              animateArmyIdle(p.mesh, u * 18);
+            }
+            if (p.isTankDrive) {
+              p.mesh.position.y = 0.02;
+              p.mesh.traverse(obj => {
+                if (obj.name === "wheel") obj.rotation.x += 0.38;
+              });
+              const turret = p.mesh.getObjectByName("turret");
+              if (turret) {
+                if (turret.userData.restZ === undefined) turret.userData.restZ = turret.position.z;
+                turret.rotation.y = Math.sin(p.progress * 14) * 0.08;
+                turret.position.z = turret.userData.restZ + (p.recoil || 0);
+                p.recoil = (p.recoil || 0) * 0.72;
+              }
+            }
+            if (p.isPlaneStrike) {
+              const takeoff = Math.min(1, u / 0.14);
+              p.mesh.position.y = 0.22 + takeoff * takeoff * 1.05;
+              p.mesh.rotation.x = takeoff < 1 ? -0.28 * takeoff : Math.sin(u * 10) * 0.04;
+              p.mesh.traverse(obj => { if (obj.name === "prop") obj.rotation.z += 1.1; });
+            }
+            p.shootCd = (p.shootCd || 0) - 0.016;
+            const overEnemy = rowUnderZ(p.fromPlayer ? "opponent" : "player", p.mesh.position.z) >= 0
+              || p.progress > 0.18;
+            const flash = p.mesh.userData.flash;
+            if (p.remaining > 0 && overEnemy && p.shootCd <= 0) {
+              p.shootCd = p.isPlaneStrike ? 0.2 : p.isTankDrive ? 0.22 : 0.11;
+              if (flash) flash.material.opacity = 1;
+              if (p.isTankDrive) p.recoil = -0.12;
+              if (p.isPlaneStrike && u > 0.12) spawnBombVisual(p);
+            } else if (flash) {
+              flash.material.opacity *= 0.55;
+            }
+          } else {
+            p.mesh.position.y = p.isMG ? 0.45 : 0.6;
+            p.mesh.position.z = p.startZ + (p.endZ - p.startZ) * Math.max(0, p.progress);
+          }
+          applyShotHits(p);
+          if (p.blocked) {
+            still.push(p);
+          } else if (p.progress >= 1) {
+            finishProjectile(p);
+          } else {
+            still.push(p);
+          }
+        }
+        projectiles = still;
+        if (!projectiles.length) packAfterShots();
+      }
+
+      if (planeBombs.length) {
+        const keepB = [];
+        for (const b of planeBombs) {
+          b.age += 0.016;
+          b.y -= 0.045 + b.age * 0.04;
+          b.mesh.position.set(b.x, b.y, b.z);
+          b.mesh.rotation.x += 0.12;
+          if (b.y <= b.ground) {
+            const flash = new THREE.Mesh(
+              new THREE.SphereGeometry(0.14, 8, 8),
+              new THREE.MeshBasicMaterial({ color: 0xffee58, transparent: true, opacity: 0.85 })
+            );
+            flash.position.set(b.x, b.ground + 0.08, b.z);
+            scene.add(flash);
+            scene.remove(b.mesh);
+            dmgPopups.push({ mesh: flash, age: 0, life: 0.28 });
+          } else {
+            keepB.push(b);
+          }
+        }
+        planeBombs = keepB;
+      }
+
+      if (dmgPopups.length) {
+        const keep = [];
+        for (const d of dmgPopups) {
+          d.age += 0.016;
+          const u = d.age / d.life;
+          d.mesh.position.y += 0.012;
+          d.mesh.material.opacity = Math.max(0, 1 - u);
+          if (u >= 1) scene.remove(d.mesh);
+          else keep.push(d);
+        }
+        dmgPopups = keep;
+      }
+
+      renderer.render(scene, camera);
+    }
+    tick();
+    } // end startGame
+  </script>
+</body>
+</html>
