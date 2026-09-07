@@ -1,16 +1,18 @@
 /* Green vertical lock — army camp. */
 window.BM = window.BM || {};
 
-BM.createCampMesh = function (len, fireTimer, side, stars) {
+BM.createCampMesh = function (len, fireTimer, side, stars, color) {
   const CELL = BM.CELL;
   const createUnitMesh = BM.createUnitMesh;
   const makeTimerSprite = BM.makeTimerSprite;
   const makeStarSprite = BM.makeStarSprite;
       const group = new THREE.Group();
       const depth = len * CELL * 0.92;
+      const troopColor = color || "green";
+      const hex = ({ red: 0xe53935, blue: 0x1e88e5, green: 0x43a047 })[troopColor] || 0x43a047;
       const matSand = new THREE.MeshStandardMaterial({ color: 0x6b5b3a, roughness: 0.9 });
-      const matTent = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.7 });
-      const matDark = new THREE.MeshStandardMaterial({ color: 0x1b5e20, roughness: 0.75 });
+      const matTent = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.7 });
+      const matDark = new THREE.MeshStandardMaterial({ color: new THREE.Color(hex).multiplyScalar(0.55), roughness: 0.75 });
       const matBag = new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.85 });
       const matMetal = new THREE.MeshStandardMaterial({ color: 0x37474f, metalness: 0.4, roughness: 0.4 });
       const matTroop = new THREE.MeshStandardMaterial({ color: 0x43a047, roughness: 0.55 });
@@ -79,7 +81,7 @@ BM.createCampMesh = function (len, fireTimer, side, stars) {
       const troops = [];
       const nMen = 3 + 2 * (stars || 0);
       for (let i = 0; i < nMen; i++) {
-        const troop = createUnitMesh("green", false, 0, false);
+        const troop = createUnitMesh(troopColor, false, 0, false, "army");
         troop.scale.setScalar(0.38);
         const z0 = -depth / 2 + 0.22 + (i / Math.max(1, nMen - 1)) * (depth - 0.44);
         const x0 = (i % 2 === 0 ? -0.16 : 0.16);

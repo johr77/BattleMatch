@@ -113,10 +113,11 @@ BM.buildTankModel = function (length, width) {
       return g;
 };
 
-BM.buildPlaneModel = function () {
+BM.buildPlaneModel = function (hex) {
       const group = new THREE.Group();
-      const mat = new THREE.MeshStandardMaterial({ color: 0xe53935, roughness: 0.45, metalness: 0.25 });
-      const matDark = new THREE.MeshStandardMaterial({ color: 0xb71c1c, roughness: 0.5 });
+      const body = hex != null ? hex : 0xe53935;
+      const mat = new THREE.MeshStandardMaterial({ color: body, roughness: 0.45, metalness: 0.25 });
+      const matDark = new THREE.MeshStandardMaterial({ color: new THREE.Color(body).multiplyScalar(0.65), roughness: 0.5 });
       const matSteel = new THREE.MeshStandardMaterial({ color: 0x37474f, metalness: 0.45, roughness: 0.4 });
       const fuselage = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.55), mat);
       fuselage.position.y = 0.28;
