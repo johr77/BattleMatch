@@ -1923,7 +1923,11 @@
         if (isPlayerBoard) playerReserve++;
         else opponentReserve++;
       }
-      if (toRemove.length) applyGravity(board);
+      if (toRemove.length) {
+        applyGravity(board);
+        // Leftover 3-in-a-rows (walls/camps) lock now — not on the next drag.
+        checkAndLockMatches(board);
+      }
       updateReserve();
       dispatchFire(firers, isPlayerBoard);
       return firers.length;
@@ -1962,6 +1966,7 @@
         else opponentReserve++;
       }
       applyGravity(board);
+      checkAndLockMatches(board);
       updateReserve();
       dispatchFire(firers, isPlayer);
       rebuildSide("player");
@@ -2319,6 +2324,8 @@
       }
       applyGravity(playerBoard);
       if (!testMode && !singleMode) applyGravity(opponentBoard);
+      checkAndLockMatches(playerBoard);
+      if (!testMode && !singleMode) checkAndLockMatches(opponentBoard);
       shotNeedPack = false;
       rebuildSide("player");
       if (!testMode) rebuildSide("opponent");
