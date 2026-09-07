@@ -1,25 +1,26 @@
-Battle Match — localhost
-========================
+Battle Match
+============
 
-http://localhost:8080/BattleMatch.html
+Play: open BattleMatch.html in a browser, or:
 
-npx --yes serve . -p 8080
-  or
-python -m http.server 8080
+  npx --yes serve . -p 8080
+
+Then go to http://localhost:8080/BattleMatch.html
 
 Files
 -----
-BattleMatch.html   game loop, boards, turns, input
-three.min.js       Three.js r160
-js/config.js       shared numbers (CELL)
-js/sprites.js      charge timer + star labels
-js/vehicles.js     tank and plane models
-js/camp.js         green camp
-js/depot.js        blue tank depot
-js/airport.js      red airfield
+BattleMatch.html     game (camera, boards, raids, environment)
+three.min.js         Three.js r160
+js/                  unit / camp / vehicle helpers
+3d/militaryfence.glb converted fence used in-game
+environment/*.glb    trees, rocks, bushes (off the playing field)
+environment/grass.jpg, sky.jpg
+environment/Grass, Sky, Trees   original source assets
 
-Edit the building in its js file. Reload the browser. Do not paste the
-whole HTML back and forth.
-
-Next likely splits: js/units.js (army men), js/wall.js, js/targets.js
-(single-player dummies), js/board.js (match / gravity / fire).
+Controls
+--------
+Hold a unit to drag, release to drop.
+Double-click a unit to delete (confirm popup).
+Right-click drag = look around. Scroll = zoom.
+Left-click while looking = snap camera home.
+Camps firing use a follow camera.
